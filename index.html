@@ -60,6 +60,10 @@
   .pill{display:flex;flex-direction:column;min-width:112px;background:var(--card-2);border:1px solid var(--rule);border-radius:999px;padding:6px 18px}
   .pill b{font-family:var(--display);font-weight:600;font-size:1.2rem;line-height:1.15;font-variant-numeric:tabular-nums}
   .pill span{color:var(--muted);font-size:.74rem}
+  .pill.danger{border-color:var(--bad);background:#3a1424;animation:alarm .8s ease-in-out infinite}
+  .pill.danger b{color:var(--bad)}
+  @keyframes alarm{50%{box-shadow:0 0 18px 0 rgba(255,122,156,.6)}}
+  @media (prefers-reduced-motion:reduce){.pill.danger{animation:none}}
 
   /* ---- the scene ---- */
   .scene{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--rule);background:#02020a;box-shadow:0 30px 60px -34px rgba(140,124,240,.55)}
@@ -215,6 +219,7 @@
       <div class="pill"><b id="pWpm">–</b><span>Words per minute</span></div>
       <div class="pill"><b id="pAcc">–</b><span>Accuracy</span></div>
       <div class="pill"><b id="pDist">0 / 30 km</b><span>Distance</span></div>
+      <div class="pill" id="pillDingo"><b id="pDingo">100 m</b><span>Dingo behind</span></div>
     </div>
     <button id="btnBack" type="button">Stage map (Esc)</button>
   </div>
@@ -290,6 +295,7 @@
     <p>Prototype. Works with a keyboard or the iPad on-screen keyboard. Progress lives in your code. Nothing is sent anywhere.</p>
     <div class="pills">
       <button id="btnTablet" type="button" aria-pressed="false">Tablet mode: off</button>
+      <button id="btnDingo" type="button">Dingo: Easy</button>
       <button id="btnSound" type="button" aria-pressed="false">Sound: off</button>
     </div>
   </footer>
@@ -412,7 +418,25 @@
   /* ------------------------------------------------------------------ game state */
   const G = { state:"menu", stage:STAGES[0], lines:[], li:0, ci:0, spans:[], correct:0, total:0, missed:{},
               started:false, activeMs:0, lastTs:0, hits:[], totalChars:0, doneChars:0, starsGot:0, stars:[], last:null };
-  const S = { t:0, off:0, kmh:18, phase:0, stumble:0, jump:-1, emuX:660, dust:[], sparks:[], shoot:null, nextShoot:6, shake:0 };
+  const S = { t:0, off:0, kmh:18, phase:0, stumble:0, jump:-1, emuX:660, dust:[], sparks:[], shoot:null, nextShoot:6, shake:0,
+              dg:1, dPause:0, dph:0, warned:false };
+
+  /* ------------------------------------------------------------------ the dingo chase
+     dg is the gap: 1 = 100 m behind (off screen), 0 = caught. The dingo runs at a set pace;
+     if the emu (your typing speed) is slower, the gap shrinks. Being caught costs no progress. */
+  const DINGO_LEVELS = ["Off", "Easy", "Normal", "Hard"];
+  const DINGO_PACE = { Easy:10, Normal:16, Hard:24 }; // km/h. About 7, 11 and 17 words per minute
+  let dingoLevel = "Easy";
+  try { const d = localStorage.getItem("emuExpress.dingo"); if (DINGO_LEVELS.includes(d)) dingoLevel = d; } catch (e) {}
+  const sndCaught = () => { tone(220,.12,"square",.05,.7); setTimeout(()=>tone(180,.2,"square",.05,.6),110); };
+  function dingoOn(){ return dingoLevel !== "Off"; }
+  function dingoCaught(){
+    G.caught++; S.dg = .6; S.dPause = 1.6; S.warned = false;
+    S.stumble = 1; S.kmh *= .4; if (!reduce) S.shake = .35;
+    for (let i = 0; i < 10; i++) S.sparks.push({ x:S.emuX - 60, y:300, vx:-40 - Math.random() * 120, vy:-60 - Math.random() * 160, life:1.2, r:5 + Math.random() * 4, rot:Math.random() * 6, c:Math.random() < .5 ? "#9a857b" : "#5b4850" });
+    sndCaught();
+    hintEl.className = "hint warn"; hintEl.innerHTML = "The dingo nipped your tail feathers! <b>Keep typing</b> to get away.";
+  }
   let themeNow = STAGES[0].theme;
 
   /* ------------------------------------------------------------------ DOM refs */
@@ -475,6 +499,8 @@
     G.started = false; G.activeMs = 0; G.lastTs = 0; G.hits = []; G.starsGot = 0;
     G.totalChars = G.lines.reduce((n, l) => n + l.length, 0); G.doneChars = 0;
     G.state = "play"; themeNow = st.theme; S.off = 0; S.kmh = 0; S.stumble = 0; S.jump = -1;
+    G.caught = 0; S.dg = 1; S.dPause = 0; S.warned = false;
+    $("#pillDingo").hidden = !dingoOn(); $("#pillDingo").classList.remove("danger");
     makeProps(st);
     $("#menuOv").hidden = true; $("#resultOv").hidden = true;
     $("#mapPanel").hidden = true; $("#playPanel").hidden = false; $("#hud").hidden = false;
@@ -579,6 +605,10 @@
     $("#pAcc").textContent = G.total ? Math.round(accNow() * 100) + "%" : "–";
     const prog = G.totalChars ? G.doneChars / G.totalChars : 0;
     $("#pDist").textContent = (prog * G.stage.km).toFixed(1) + " / " + G.stage.km + " km";
+    if (dingoOn()) {
+      $("#pDingo").textContent = Math.round(S.dg * 100) + " m";
+      $("#pillDingo").classList.toggle("danger", G.state === "play" && S.dg < .35);
+    }
   }
   function finishStage(){
     G.state = "finish";
@@ -609,6 +639,7 @@
              : r.stars === 2 ? "Good accuracy. Slow and steady is faster in the end."
              : "Accuracy first. Slow down a little and let the emu find its rhythm.";
     if (r.newBest) note = "New personal best for this stage. " + note;
+    if (dingoOn()) note = (G.caught ? "The dingo caught you " + G.caught + (G.caught === 1 ? " time. " : " times. ") : "You outran the dingo! ") + note;
     $("#rNote").innerHTML = note + (miss.length ? " <b>Keys to practise: " + miss.join(", ") + ".</b>" : "");
     const nxt = STAGES.find(s => s.id === G.stage.id + 1 && s.playable);
     $("#rNext").hidden = !nxt; $("#rNext").dataset.id = nxt ? nxt.id : "";
@@ -796,6 +827,47 @@
     ctx.lineTo(W + 8, H); ctx.closePath(); ctx.fillStyle = color; ctx.fill();
   }
 
+  function dLeg(hx, hy, ph, col){
+    const a = Math.sin(ph) * .95, kx = hx + Math.sin(a) * 15, ky = hy + Math.cos(a) * 15;
+    const b = a - (.25 + .7 * Math.max(0, Math.cos(ph)));
+    const fx = kx + Math.sin(b) * 16, fy = Math.min(ky + Math.cos(b) * 16, 0);
+    ctx.strokeStyle = col; ctx.lineCap = "round";
+    ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.stroke();
+    ctx.lineWidth = 4.5; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.fillStyle = "#f3e2c8"; ctx.beginPath(); ctx.arc(fx + 1, fy - 1, 3.4, 0, 7); ctx.fill();
+  }
+  function drawDingo(x, footY, ph, t){
+    const b = Math.sin(ph * 2) * 2.2;
+    ctx.fillStyle = "rgba(0,0,0,.32)"; ctx.beginPath(); ctx.ellipse(x + 4, footY + 3, 44, 5, 0, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(x, footY);
+    dLeg(-26, -32 + b, ph + Math.PI, "#7d4520"); dLeg(24, -32 + b, ph + Math.PI + .7, "#7d4520");
+    // tail with a white tip
+    ctx.strokeStyle = "#c27636"; ctx.lineCap = "round"; ctx.lineWidth = 9;
+    const tx = -74, ty = -34 + b + Math.sin(t * 12) * 4;
+    ctx.beginPath(); ctx.moveTo(-36, -42 + b); ctx.quadraticCurveTo(-60, -50 + b, tx, ty); ctx.stroke();
+    ctx.fillStyle = "#f3e2c8"; ctx.beginPath(); ctx.arc(tx, ty, 5, 0, 7); ctx.fill();
+    // body
+    const g = ctx.createLinearGradient(0, -56 + b, 0, -22 + b); g.addColorStop(0, "#e09a52"); g.addColorStop(1, "#a85f2a");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -40 + b, 42, 15, -.05, 0, 7); ctx.fill();
+    ctx.fillStyle = "#f0d2a8"; ctx.beginPath(); ctx.ellipse(8, -29 + b, 26, 5, 0, 0, 7); ctx.fill();
+    // neck and chest
+    ctx.fillStyle = "#d48a46"; ctx.beginPath(); ctx.ellipse(36, -48 + b, 13, 16, .5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#f3e2c8"; ctx.beginPath(); ctx.ellipse(41, -40 + b, 8, 10, .3, 0, 7); ctx.fill();
+    // head, snout, ears
+    const hx = 50, hy = -60 + b;
+    ctx.fillStyle = "#d8904a"; ctx.beginPath(); ctx.arc(hx, hy, 12, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(hx + 4, hy - 6); ctx.lineTo(hx + 26, hy + 1); ctx.lineTo(hx + 24, hy + 7); ctx.lineTo(hx + 4, hy + 9); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#f3e2c8"; ctx.beginPath(); ctx.moveTo(hx + 6, hy + 4); ctx.lineTo(hx + 24, hy + 6); ctx.lineTo(hx + 6, hy + 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#1a1014"; ctx.beginPath(); ctx.arc(hx + 25, hy + 2, 2.6, 0, 7); ctx.fill();
+    ctx.fillStyle = "#c27636";
+    ctx.beginPath(); ctx.moveTo(hx - 9, hy - 6); ctx.lineTo(hx - 6, hy - 22); ctx.lineTo(hx + 1, hy - 9); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(hx - 1, hy - 9); ctx.lineTo(hx + 4, hy - 23); ctx.lineTo(hx + 9, hy - 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#1a1014"; ctx.beginPath(); ctx.ellipse(hx + 6, hy - 3, 2.4, 2, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(hx + 6.8, hy - 3.6, .8, 0, 7); ctx.fill();
+    dLeg(-22, -32 + b, ph, "#b56a30"); dLeg(28, -32 + b, ph + .7, "#b56a30");
+    ctx.restore();
+  }
+
   function frame(dt){
     const th = themeNow, t = S.t, hz = 246;
     const prog = G.state === "menu" ? .45 : (G.totalChars ? G.doneChars / G.totalChars : 0);
@@ -847,6 +919,10 @@
     // emu
     const moving = clamp(S.kmh / 7, 0, 1);
     ctx.save(); if (S.shake > 0) ctx.translate((Math.random() - .5) * 5, (Math.random() - .5) * 4);
+    if (dingoOn() && G.state !== "menu") {
+      const dx = S.emuX - 92 - S.dg * 420;
+      if (dx > -120) drawDingo(dx, 376, S.dph, t);
+    }
     drawEmu(S.emuX, 372, S.phase, moving, S.stumble, S.jump, t);
     ctx.restore();
     // foreground grass
@@ -878,6 +954,19 @@
     S.off += S.kmh * 8 * dt * (reduce ? .4 : 1);
     S.phase += dt * (3 + S.kmh * .22) * (S.kmh > .5 ? 1 : 0);
     S.stumble = Math.max(0, S.stumble - dt * 2.4);
+    if (dingoOn()) {
+      if (G.state === "play" && G.started) {
+        const pace = DINGO_PACE[dingoLevel] * (tablet ? .8 : 1);
+        if (S.dPause > 0) { S.dPause -= dt; S.dg = Math.min(1, S.dg + dt * .05); }
+        else {
+          S.dg = clamp(S.dg + clamp((S.kmh - pace) / pace, -1, 1) * .11 * dt, 0, 1);
+          if (S.dg <= 0) dingoCaught();
+          else if (S.dg < .3 && !S.warned) { S.warned = true; hintEl.className = "hint warn"; hintEl.innerHTML = "The dingo is catching up! <b>Keep typing.</b>"; }
+          else if (S.dg > .45) S.warned = false;
+        }
+      } else if (G.state === "finish") S.dg = Math.min(1, S.dg + dt * .45);
+      S.dph += dt * (G.state === "play" && G.started ? 13 : 9);
+    }
     S.shake = Math.max(0, S.shake - dt);
     if (S.jump >= 0) { S.jump += dt / .75; if (S.jump >= 1) S.jump = -1; }
     if (S.kmh > 3 && Math.random() < dt * S.kmh * .5) puffDust(1);
@@ -967,6 +1056,15 @@
     $("#rAgain").addEventListener("click", () => startStage(G.stage.id));
     $("#rNext").addEventListener("click", e => startStage(+e.currentTarget.dataset.id));
     $("#rMap").addEventListener("click", showMenu);
+    const db = $("#btnDingo");
+    db.textContent = "Dingo: " + dingoLevel;
+    db.addEventListener("click", () => {
+      dingoLevel = DINGO_LEVELS[(DINGO_LEVELS.indexOf(dingoLevel) + 1) % DINGO_LEVELS.length];
+      db.textContent = "Dingo: " + dingoLevel;
+      try { localStorage.setItem("emuExpress.dingo", dingoLevel); } catch (e) {}
+      $("#pillDingo").hidden = !dingoOn();
+      if (!dingoOn()) $("#pillDingo").classList.remove("danger");
+    });
     $("#btnSound").addEventListener("click", e => {
       soundOn = !soundOn; e.currentTarget.textContent = "Sound: " + (soundOn ? "on" : "off"); e.currentTarget.setAttribute("aria-pressed", String(soundOn)); sndOk();
     });
