@@ -201,6 +201,11 @@
   .dojo-tally::before{content:"";width:12px;height:12px;background:var(--token);clip-path:var(--star)}
   .dojo-tally b{color:var(--ink);font-variant-numeric:tabular-nums}
   .dojo-tally .plus{color:var(--ok);font-weight:700}
+  .dojo-tally .banked{opacity:.75}
+  .dojo-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:inherit;gap:4px 10px;margin-top:4px}
+  .rcode .dojo-row{justify-content:center}
+  button.bank{font-size:.78rem;padding:3px 12px;border-style:dashed}
+  button.bank.armed{border-style:solid;border-color:var(--token);color:var(--token)}
 
   /* ---- tablet mode: the lesson sign sits in the sky, the scene shrinks to fit above the iPad keyboard ---- */
   body.tablet #playPanel{display:none}
@@ -275,7 +280,7 @@
           <div><b id="rTime">0:00</b><span>Time</span></div>
         </div>
         <p class="rnote" id="rNote"></p>
-        <div class="rcode" id="rCodeBox">Your new progress code. Write it in your book.<span class="code" id="rCode"></span><span class="dojo-tally" id="rDojo"></span></div>
+        <div class="rcode" id="rCodeBox">Your new progress code. Write it in your book.<span class="code" id="rCode"></span><span class="dojo-row"><span class="dojo-tally" id="rDojo"></span><button type="button" class="bank" id="rBank">Bank points</button></span></div>
         <div class="rbtns">
           <button id="rAgain" type="button">Try again</button>
           <button id="rNext" class="primary" type="button">Next stage</button>
@@ -292,11 +297,11 @@
       <div>
         <div class="lbl">Your progress code. Write it in your book.</div>
         <div class="code" id="myCode">EMU-2222-9</div>
-        <div class="dojo-tally" id="myDojo">Dojo points earned: <b>0</b></div>
+        <div class="dojo-row"><span class="dojo-tally" id="myDojo">Dojo points to give: <b>0</b></span><button type="button" class="bank" id="btnBank">Bank points</button></div>
       </div>
       <form class="codeload" id="codeForm" autocomplete="off">
         <label class="lbl" for="codeIn">Have a code?</label>
-        <input id="codeIn" type="text" placeholder="EMU-XXXX-X" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="14">
+        <input id="codeIn" type="text" placeholder="EMU-XXXXX-X" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="14">
         <button type="submit">Load code</button>
         <button type="button" id="btnClear">New student</button>
       </form>
@@ -446,21 +451,32 @@
   function makeCode(){
     let n = 0;
     STAGES.forEach((s, i) => { const b = save.best[s.id]; n += (b ? clamp(b.stars | 0, 0, 3) : 0) * Math.pow(4, i); });
+    n += clamp(save.banked | 0, 0, 30) * Math.pow(2, 20);
     let body = "";
-    for (let i = 0; i < 4; i++) { body = CODE_CH[n % 32] + body; n = Math.floor(n / 32); }
+    for (let i = 0; i < 5; i++) { body = CODE_CH[n % 32] + body; n = Math.floor(n / 32); }
     return "EMU-" + body + "-" + CODE_CH[checksum(body)];
   }
   // One Dojo point per star. Stars live in the progress code, so the tally travels with it.
   function dojoTotal(){ return STAGES.reduce((n, s) => n + (save.best[s.id] ? clamp(save.best[s.id].stars | 0, 0, 3) : 0), 0); }
+  function dojoToGive(){ return Math.max(0, dojoTotal() - (save.banked | 0)); }
+  function dojoHtml(gained){
+    return (gained ? '<span class="plus">+' + gained + '</span> ' : "") + "Dojo points to give: <b>" + dojoToGive() + "</b>" +
+      (save.banked ? ' <span class="banked">(' + save.banked + ' already banked)</span>' : "");
+  }
+  function resetBank(btn){ if (!btn) return; delete btn.dataset.armed; btn.classList.remove("armed"); btn.textContent = "Bank points"; }
   function readCode(raw){
     let s = String(raw).toUpperCase().replace(/[^0-9A-Z]/g, "");
-    if (s.length === 8 && s.startsWith("EMU")) s = s.slice(3);
-    if (s.length !== 5 || [...s].some(c => !CODE_CH.includes(c))) return null;
-    const body = s.slice(0, 4);
-    if (CODE_CH[checksum(body)] !== s[4]) return null;
+    if ((s.length === 8 || s.length === 9) && s.startsWith("EMU")) s = s.slice(3);
+    // 5 characters: an older code (stars only). 6 characters: stars plus banked Dojo points.
+    if ((s.length !== 5 && s.length !== 6) || [...s].some(c => !CODE_CH.includes(c))) return null;
+    const body = s.slice(0, -1);
+    if (CODE_CH[checksum(body)] !== s[s.length - 1]) return null;
     let n = 0; for (const c of body) n = n * 32 + CODE_CH.indexOf(c);
+    const banked = Math.floor(n / Math.pow(2, 20)); n = n % Math.pow(2, 20);
     const stars = {}; STAGES.forEach(st => { stars[st.id] = n % 4; n = Math.floor(n / 4); });
-    return stars;
+    const total = Object.values(stars).reduce((a, b) => a + b, 0);
+    if (banked > total) return null;
+    return { stars, banked };
   }
 
   /* ------------------------------------------------------------------ tablet mode */
@@ -618,6 +634,7 @@
     G.totalChars = G.lines.reduce((n, l) => n + l.length, 0); G.doneChars = 0;
     G.state = "play"; themeNow = st.theme; S.off = 0; S.kmh = 0; S.stumble = 0; S.jump = -1;
     G.caught = 0; S.dg = 1; S.dPause = 0; S.warned = false;
+    $("#codeMsg").textContent = ""; $("#codeMsg").className = "codemsg";
     $("#pillDingo").hidden = !dingoOn(); $("#pillDingo").classList.remove("danger");
     makeProps(st);
     $("#menuOv").hidden = true; $("#resultOv").hidden = true;
@@ -782,7 +799,7 @@
     const nxt = STAGES.find(s => s.id === G.stage.id + 1 && s.playable);
     $("#rNext").hidden = !nxt; $("#rNext").dataset.id = nxt ? nxt.id : "";
     $("#rCode").textContent = makeCode();
-    $("#rDojo").innerHTML = (r.gained ? '<span class="plus">+' + r.gained + '</span> ' : "") + "Dojo points earned: <b>" + dojoTotal() + "</b>";
+    $("#rDojo").innerHTML = dojoHtml(r.gained); resetBank($("#rBank"));
     $("#rCodeBox").hidden = false; $("#rStars").hidden = false;
     $("#rAgain").textContent = "Try again"; $("#rAgain").classList.remove("primary");
     $("#resultOv").hidden = false;
@@ -794,7 +811,7 @@
   function renderMap(){
     const wrap = $("#stages"); wrap.innerHTML = "";
     $("#myCode").textContent = makeCode();
-    $("#myDojo").innerHTML = "Dojo points earned: <b>" + dojoTotal() + "</b>";
+    $("#myDojo").innerHTML = dojoHtml(0); resetBank($("#btnBank"));
     const rec = nextStageToPlay();
     STAGES.forEach(st => {
       const b = save.best[st.id];
@@ -1279,20 +1296,38 @@
     const msg = $("#codeMsg");
     $("#codeForm").addEventListener("submit", e => {
       e.preventDefault();
-      const stars = readCode($("#codeIn").value);
+      const got = readCode($("#codeIn").value), stars = got && got.stars;
       if (!stars) { msg.className = "codemsg bad"; msg.textContent = "That code doesn't look right. Check each letter and number, then try again."; return; }
       save.best = {};
       for (const id in stars) if (stars[id]) save.best[id] = { stars:stars[id], wpm:null, acc:null };
+      save.banked = got.banked;
       persist(); $("#codeIn").value = "";
       const total = Object.values(stars).reduce((a, b) => a + b, 0);
       msg.className = "codemsg ok"; msg.textContent = "Welcome back! " + total + " star" + (total === 1 ? "" : "s") + " loaded.";
       showMenu();
     });
+    for (const btn of [$("#btnBank"), $("#rBank")]) btn.addEventListener("click", () => {
+      const give = dojoToGive();
+      if (!give) { btn.textContent = "Nothing to bank"; setTimeout(() => resetBank(btn), 2000); return; }
+      if (btn.dataset.armed && Date.now() - +btn.dataset.armed < 4000) {
+        save.banked = dojoTotal(); persist();
+        const code = makeCode();
+        $("#myCode").textContent = code; $("#rCode").textContent = code;
+        $("#myDojo").innerHTML = dojoHtml(0); $("#rDojo").innerHTML = dojoHtml(0);
+        resetBank($("#btnBank")); resetBank($("#rBank"));
+        msg.className = "codemsg ok"; msg.textContent = give + " Dojo point" + (give === 1 ? "" : "s") + " banked. Write down the new code: " + code;
+        btn.textContent = "Banked. New code above";
+        setTimeout(() => resetBank(btn), 3000);
+      } else {
+        btn.dataset.armed = Date.now(); btn.classList.add("armed"); btn.textContent = "Tap again to bank " + give;
+        setTimeout(() => { if (btn.dataset.armed && Date.now() - +btn.dataset.armed >= 3900) resetBank(btn); }, 4000);
+      }
+    });
     let clearArmed = 0;
     $("#btnClear").addEventListener("click", e => {
       const b = e.currentTarget;
       if (Date.now() - clearArmed < 4000) {
-        clearArmed = 0; save.best = {}; persist(); b.textContent = "New student";
+        clearArmed = 0; save.best = {}; save.banked = 0; persist(); b.textContent = "New student";
         msg.className = "codemsg ok"; msg.textContent = "Progress cleared. Ready for the next rider.";
         showMenu();
       } else {
