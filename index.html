@@ -245,7 +245,7 @@
           <div><b id="rTime">0:00</b><span>Time</span></div>
         </div>
         <p class="rnote" id="rNote"></p>
-        <div class="rcode">Your new progress code. Write it in your book.<span class="code" id="rCode"></span></div>
+        <div class="rcode" id="rCodeBox">Your new progress code. Write it in your book.<span class="code" id="rCode"></span></div>
         <div class="rbtns">
           <button id="rAgain" type="button">Try again</button>
           <button id="rNext" class="primary" type="button">Next stage</button>
@@ -430,12 +430,32 @@
   try { const d = localStorage.getItem("emuExpress.dingo"); if (DINGO_LEVELS.includes(d)) dingoLevel = d; } catch (e) {}
   const sndCaught = () => { tone(220,.12,"square",.05,.7); setTimeout(()=>tone(180,.2,"square",.05,.6),110); };
   function dingoOn(){ return dingoLevel !== "Off"; }
+  // Caught: the stage ends and must be started again from the first line. Stars and the progress code are not changed.
   function dingoCaught(){
-    G.caught++; S.dg = .6; S.dPause = 1.6; S.warned = false;
-    S.stumble = 1; S.kmh *= .4; if (!reduce) S.shake = .35;
-    for (let i = 0; i < 10; i++) S.sparks.push({ x:S.emuX - 60, y:300, vx:-40 - Math.random() * 120, vy:-60 - Math.random() * 160, life:1.2, r:5 + Math.random() * 4, rot:Math.random() * 6, c:Math.random() < .5 ? "#9a857b" : "#5b4850" });
+    G.caught++; G.state = "caught"; S.dg = 0; S.warned = false;
+    S.stumble = 1; S.kmh = 0; if (!reduce) S.shake = .4;
+    if (prevNext) { prevNext.classList.remove("next"); prevNext = null; }
+    for (let i = 0; i < 14; i++) S.sparks.push({ x:S.emuX - 60, y:300, vx:-40 - Math.random() * 120, vy:-60 - Math.random() * 160, life:1.2, r:5 + Math.random() * 4, rot:Math.random() * 6, c:Math.random() < .5 ? "#9a857b" : "#5b4850" });
     sndCaught();
-    hintEl.className = "hint warn"; hintEl.innerHTML = "The dingo nipped your tail feathers! <b>Keep typing</b> to get away.";
+    hintEl.className = "hint warn"; hintEl.innerHTML = "The dingo caught you!";
+    tapEl.blur(); updateHud();
+    setTimeout(showCaught, 1200);
+  }
+  function showCaught(){
+    if (G.state !== "caught") return;
+    const prog = G.totalChars ? G.doneChars / G.totalChars : 0, secs = Math.round(G.activeMs / 1000);
+    $("#rTitle").textContent = "The dingo caught you!";
+    $("#rStars").hidden = true; $("#rCodeBox").hidden = true; $("#rNext").hidden = true;
+    $("#rWpm").textContent = Math.round(wpmNow());
+    $("#rAcc").textContent = G.total ? Math.round(accNow() * 100) + "%" : "–";
+    $("#rTime").textContent = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+    const miss = Object.entries(G.missed).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c === " " ? "space" : c.toUpperCase());
+    $("#rNote").innerHTML = "You made it " + (prog * G.stage.km).toFixed(1) + " of " + G.stage.km + " km. Keep a steady rhythm and don't stop, and the dingo can't catch you. Start the stage again to have another go." +
+      (miss.length ? " <b>Keys to practise: " + miss.join(", ") + ".</b>" : "");
+    const again = $("#rAgain"); again.textContent = "Start again"; again.classList.add("primary");
+    $("#resultOv").hidden = false;
+    setLayout(); window.scrollTo(0, 0);
+    again.focus({ preventScroll:true });
   }
   let themeNow = STAGES[0].theme;
 
@@ -463,7 +483,7 @@
   }
 
   function setLayout(){
-    const playing = G.state === "play" || (G.state === "finish" && $("#resultOv").hidden);
+    const playing = G.state === "play" || ((G.state === "finish" || G.state === "caught") && $("#resultOv").hidden);
     document.body.classList.toggle("tablet", tablet);
     document.body.classList.toggle("playing", playing);
     viewTop = tablet && playing ? 100 : 0;
@@ -639,11 +659,13 @@
              : r.stars === 2 ? "Good accuracy. Slow and steady is faster in the end."
              : "Accuracy first. Slow down a little and let the emu find its rhythm.";
     if (r.newBest) note = "New personal best for this stage. " + note;
-    if (dingoOn()) note = (G.caught ? "The dingo caught you " + G.caught + (G.caught === 1 ? " time. " : " times. ") : "You outran the dingo! ") + note;
+    if (dingoOn()) note = "You outran the dingo! " + note;
     $("#rNote").innerHTML = note + (miss.length ? " <b>Keys to practise: " + miss.join(", ") + ".</b>" : "");
     const nxt = STAGES.find(s => s.id === G.stage.id + 1 && s.playable);
     $("#rNext").hidden = !nxt; $("#rNext").dataset.id = nxt ? nxt.id : "";
     $("#rCode").textContent = makeCode();
+    $("#rCodeBox").hidden = false; $("#rStars").hidden = false;
+    $("#rAgain").textContent = "Try again"; $("#rAgain").classList.remove("primary");
     $("#resultOv").hidden = false;
     setLayout(); window.scrollTo(0, 0);
     $("#rAgain").focus({ preventScroll:true });
