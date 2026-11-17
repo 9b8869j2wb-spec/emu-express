@@ -199,14 +199,23 @@
   body.tablet.playing .pill{min-width:0;padding:3px 12px;flex-direction:row;gap:6px;align-items:baseline}
   body.tablet.playing .pill b{font-size:1rem}
   body.tablet.playing #btnBack{padding:6px 14px;font-size:.9rem}
-  body.tablet.playing .scene{width:100%;max-width:calc((var(--vvh,100vh) - 84px) * 3);margin:0 auto}
-  body.tablet.playing canvas{aspect-ratio:960/320}
-  .scene > .sign{position:absolute;left:10px;right:10px;top:10px;padding:8px 14px;background:rgba(5,5,13,.74);backdrop-filter:blur(2px);border-radius:16px;cursor:text}
-  .scene > .sign .line{font-size:clamp(1.05rem,.7rem + 1.8vw,1.7rem)}
+  body.tablet.playing .scene{margin:0 auto}
+  body.tablet.playing footer{display:none}
+  body.tablet.playing .bar{flex-wrap:nowrap}
+  body.tablet.playing .bar h2 small{display:none}
+  body.tablet.playing .bar h2{white-space:nowrap}
+  body.tablet.playing .pills{flex-wrap:nowrap;gap:6px}
+  body.tablet.playing .pill span[data-s]{font-size:0}
+  body.tablet.playing .pill span[data-s]::after{content:attr(data-s);font-size:.78rem}
+  body.tablet.playing #btnBack{white-space:nowrap;flex:none}
+  /* in tablet mode the sign is a strip above the picture, so it never covers the emu */
+  .scene > .sign{border:0;border-bottom:1px solid var(--rule);border-radius:0;padding:8px 18px 7px;cursor:text;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:16px}
+  .scene > .sign .line{grid-column:1/-1;font-size:clamp(1.5rem,1rem + 1.9vw,2.2rem);line-height:1.3}
   .scene > .sign .upnext{display:none}
-  .scene > .sign .linestars{margin-top:4px;gap:4px}
-  .scene > .sign .linestars i{width:11px;height:11px}
-  .scene > .sign .hint{margin:4px 0 0;font-size:.85rem;min-height:1.3em}
+  .scene > .sign .hint{grid-column:1;grid-row:2;margin:2px 0 0;font-size:.9rem;min-height:1.3em}
+  .scene > .sign .linestars{grid-column:2;grid-row:2;margin:0;gap:4px}
+  .scene > .sign .linestars i{width:12px;height:12px}
 
   @media (max-width:640px){
     .menu-ov .copy{max-width:62%}
@@ -224,11 +233,11 @@
   <div class="bar" id="hud" hidden>
     <h2 id="stageTitle">Stage 1 <small>Uluru</small></h2>
     <div class="pills">
-      <div class="pill"><b id="pSpeed">0 km/h</b><span>Emu speed</span></div>
-      <div class="pill"><b id="pWpm">–</b><span>Words per minute</span></div>
-      <div class="pill"><b id="pAcc">–</b><span>Accuracy</span></div>
-      <div class="pill"><b id="pDist">0 / 30 km</b><span>Distance</span></div>
-      <div class="pill" id="pillDingo"><b id="pDingo">100 m</b><span>Dingo behind</span></div>
+      <div class="pill"><b id="pSpeed">0 km/h</b><span data-s="speed">Emu speed</span></div>
+      <div class="pill"><b id="pWpm">–</b><span data-s="wpm">Words per minute</span></div>
+      <div class="pill"><b id="pAcc">–</b><span data-s="accuracy">Accuracy</span></div>
+      <div class="pill"><b id="pDist">0 / 30 km</b><span data-s="">Distance</span></div>
+      <div class="pill" id="pillDingo"><b id="pDingo">100 m</b><span data-s="dingo">Dingo behind</span></div>
     </div>
     <button id="btnBack" type="button">Stage map (Esc)</button>
   </div>
@@ -402,7 +411,7 @@
   }
 
   /* ------------------------------------------------------------------ tablet mode */
-  let tablet = false, viewTop = 0;
+  let tablet = false, viewTop = 0, viewH = 420; // the slice of the 960 x 420 scene that is shown
   try { const p = localStorage.getItem("emuExpress.tablet"); tablet = p ? p === "on" : null; } catch (e) { tablet = null; }
   if (tablet === null) tablet = navigator.maxTouchPoints > 1 || matchMedia("(pointer: coarse)").matches;
 
@@ -495,11 +504,29 @@
     const playing = G.state === "play" || ((G.state === "finish" || G.state === "caught") && $("#resultOv").hidden);
     document.body.classList.toggle("tablet", tablet);
     document.body.classList.toggle("playing", playing);
-    viewTop = tablet && playing ? 100 : 0;
     const sign = $("#sign"), scene = $(".scene"), panel = $("#playPanel");
-    if (tablet) { if (sign.parentNode !== scene) scene.insertBefore(sign, $("#menuOv")); }
+    if (tablet) { if (sign.parentNode !== scene) scene.insertBefore(sign, canvas); }
     else if (sign.parentNode !== panel) panel.insertBefore(sign, panel.firstChild);
     const tb = $("#btnTablet"); tb.textContent = "Tablet mode: " + (tablet ? "on" : "off"); tb.setAttribute("aria-pressed", String(tablet));
+    $("#btnBack").textContent = tablet ? "Stage map" : "Stage map (Esc)";
+    sizeScene();
+  }
+  // Tablet play: fit the picture into the space left above the iPad keyboard.
+  // Show at least the band from the emu's head to its feet (y 150 to 405), and use the width when there is room.
+  function sizeScene(){
+    const scene = $(".scene");
+    if (tablet && document.body.classList.contains("playing")) {
+      const v = window.visualViewport, vh = v ? v.height : innerHeight;
+      const avail = Math.max(120, vh - $("#hud").offsetHeight - $("#sign").offsetHeight - 8 - 8 - 14);
+      const maxW = $("main").clientWidth - 32;
+      let width = Math.min(maxW, avail * W / 255);
+      let vis = Math.min(320, avail * W / width);
+      viewH = Math.round(vis); viewTop = 405 - viewH;
+      scene.style.width = Math.round(width) + "px";
+      canvas.style.aspectRatio = W + " / " + viewH;
+    } else {
+      viewH = H; viewTop = 0; scene.style.width = ""; canvas.style.aspectRatio = "";
+    }
     fit();
   }
   function startHint(){
@@ -546,6 +573,7 @@
       $("#app").focus({ preventScroll:true });
     }
     window.scrollTo({ top:0, behavior:"auto" });
+    requestAnimationFrame(sizeScene);
   }
 
   /* ------------------------------------------------------------------ lesson sign */
@@ -1020,7 +1048,7 @@
   }
   function fit(){
     const dpr = Math.min(2, window.devicePixelRatio || 1), w = canvas.clientWidth || W;
-    canvas.width = Math.round(w * dpr); canvas.height = Math.round(w * (H - viewTop) / W * dpr);
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(w * viewH / W * dpr);
     const sc = canvas.width / W;
     ctx.setTransform(sc, 0, 0, sc, 0, -viewTop * sc);
   }
@@ -1033,9 +1061,10 @@
   function boot(data){
     if (data && data.save && data.save.best) save = data.save;
     buildKeyboard(); setVvh(); fit();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeScene);
     if (window.ResizeObserver) new ResizeObserver(fit).observe(canvas); else addEventListener("resize", fit);
-    if (window.visualViewport) visualViewport.addEventListener("resize", () => { setVvh(); if (tablet && G.state === "play") window.scrollTo(0, 0); });
-    addEventListener("resize", setVvh);
+    if (window.visualViewport) visualViewport.addEventListener("resize", () => { setVvh(); sizeScene(); if (tablet && G.state === "play") window.scrollTo(0, 0); });
+    addEventListener("resize", () => { setVvh(); sizeScene(); });
     document.addEventListener("keydown", onKey);
 
     // tap to type: the hidden input brings up the iPad keyboard; each letter is read, then cleared
