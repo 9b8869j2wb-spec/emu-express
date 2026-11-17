@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emu Express</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one night-sky scene on top; stage map below when idle, lesson sign + keyboard below when playing.
+     Same space-night world as the Q3 Reward Tracker: ink-black sky, gold stars, cyan/violet/pink accents. */
+  :root{
+    color-scheme: dark;
+    --space:#030308;
+    --card:#0d0c1c;
+    --card-2:#151330;
+    --ink:#FFFFFF;
+    --muted:#A9A6D6;
+    --rule:rgba(165,155,255,.18);
+    --token:#FFC93C;
+    --cyan:#6FD6F2;
+    --violet:#8C7CF0;
+    --pink:#F06BB4;
+    --ok:#7FE3A0;
+    --bad:#FF7A9C;
+    --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+    --text:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --star:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+    --k:clamp(26px,5.4vw,54px);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html{background:var(--space)}
+  body{margin:0;background:var(--space);color:var(--ink);font-family:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.6;
+    background-image:
+      radial-gradient(1.4px 1.4px at 20px 30px,#ffe9a8 50%,transparent 51%),
+      radial-gradient(1px 1px at 140px 90px,#fff 50%,transparent 51%),
+      radial-gradient(1.6px 1.6px at 210px 180px,#ffd66b 50%,transparent 51%),
+      radial-gradient(1px 1px at 70px 210px,#cfd8ff 50%,transparent 51%),
+      radial-gradient(1.2px 1.2px at 260px 40px,#fff 50%,transparent 51%);
+    background-size:340px 280px;
+  }
+  main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:22px 16px 48px;outline:none;display:grid;gap:18px}
+  h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+  button{font-family:var(--display);font-weight:600;font-size:1rem;cursor:pointer;color:var(--ink);background:var(--card-2);border:1px solid var(--rule);border-radius:999px;padding:10px 22px}
+  button:hover:not(:disabled){border-color:var(--cyan)}
+  button:disabled{cursor:default;opacity:.55}
+  button.primary{background:linear-gradient(120deg,var(--violet),var(--pink));border-color:transparent;box-shadow:0 8px 24px -10px rgba(240,107,180,.8)}
+  button.big{font-size:1.2rem;padding:14px 30px}
+  :focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+
+  /* ---- play bar ---- */
+  .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .bar h2{font-size:1.25rem;font-weight:600}
+  .bar h2 small{font-family:var(--text);font-weight:600;color:var(--muted);font-size:.9rem;margin-left:8px}
+  .pills{display:flex;flex-wrap:wrap;gap:10px}
+  .pill{display:flex;flex-direction:column;min-width:112px;background:var(--card-2);border:1px solid var(--rule);border-radius:999px;padding:6px 18px}
+  .pill b{font-family:var(--display);font-weight:600;font-size:1.2rem;line-height:1.15;font-variant-numeric:tabular-nums}
+  .pill span{color:var(--muted);font-size:.74rem}
+
+  /* ---- the scene ---- */
+  .scene{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--rule);background:#02020a;box-shadow:0 30px 60px -34px rgba(140,124,240,.55)}
+  canvas{display:block;width:100%;aspect-ratio:960/420}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;padding:clamp(18px,4vw,44px)}
+  .menu-ov{background:linear-gradient(90deg,rgba(3,3,8,.82) 0,rgba(3,3,8,.55) 36%,rgba(3,3,8,0) 62%)}
+  .menu-ov .copy{max-width:min(46%,420px);display:grid;gap:14px;justify-items:start}
+  .menu-ov h1{
+    font-weight:700;font-size:clamp(2.3rem,1.2rem + 4.2vw,4.6rem);line-height:1;letter-spacing:-.01em;
+    background:linear-gradient(120deg,var(--cyan),var(--violet) 55%,var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .menu-ov p{margin:0;color:var(--muted);font-size:clamp(.9rem,.8rem + .4vw,1.1rem);max-width:34ch}
+  .menu-ov p b{color:var(--token);font-weight:700}
+  .result-ov{justify-content:center;align-items:safe center;overflow-y:auto;background:rgba(3,3,8,.62);backdrop-filter:blur(3px)}
+  .result{width:min(520px,100%);text-align:center;background:linear-gradient(160deg,#1b1840,#0d0c1c 70%);border:1px solid var(--rule);border-radius:26px;padding:22px 24px 22px;box-shadow:0 30px 80px -20px rgba(140,124,240,.6)}
+  .result h2{font-size:clamp(1.5rem,1.1rem + 1.6vw,2.1rem)}
+  .rstars{display:flex;justify-content:center;gap:10px;margin:10px 0 6px}
+  .rstars i{width:44px;height:44px;background:#2a2550;clip-path:var(--star)}
+  .rstars i.on{background:var(--token);animation:pop .6s ease both}
+  .rstars i.on:nth-child(2){animation-delay:.15s}
+  .rstars i.on:nth-child(3){animation-delay:.3s}
+  @keyframes pop{0%{transform:scale(.2) rotate(-90deg);opacity:0}60%{transform:scale(1.3)}100%{transform:scale(1);opacity:1}}
+  .rstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+  .rstats div{background:var(--card-2);border:1px solid var(--rule);border-radius:16px;padding:8px 6px}
+  .rstats b{display:block;font-family:var(--display);font-size:1.5rem;line-height:1.15;font-variant-numeric:tabular-nums}
+  .rstats span{font-size:.78rem;color:var(--muted)}
+  .rnote{margin:6px 0 0;color:var(--muted);font-size:.95rem}
+  .rnote b{color:var(--ink)}
+  .rbtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px}
+
+  /* ---- panels ---- */
+  .panel{background:var(--card);border:1px solid var(--rule);border-radius:22px;padding:20px 22px 22px}
+  .panel > h2{font-size:1.3rem}
+  .panel > p{margin:4px 0 0;color:var(--muted);font-size:.95rem;max-width:60ch}
+
+  .stages{display:grid;gap:14px;margin-top:16px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .stage{position:relative;display:flex;flex-direction:column;gap:6px;background:linear-gradient(160deg,var(--card-2),var(--card) 70%);border:1px solid var(--rule);border-radius:20px;padding:14px 16px 16px}
+  .stage.ready{border:2px solid var(--token);padding:13px 15px 15px;box-shadow:0 0 22px -6px rgba(255,201,60,.55)}
+  .stage.ready::after{content:"";position:absolute;top:-9px;right:14px;width:20px;height:20px;background:var(--token);clip-path:var(--star)}
+  .stage.locked{opacity:.62}
+  .s-top{display:flex;align-items:center;gap:10px}
+  .s-no{font-family:var(--display);font-weight:600;font-size:.85rem;color:#000;background:var(--cyan);border-radius:50%;min-width:26px;height:26px;display:grid;place-items:center;flex:none}
+  .stage.locked .s-no{background:#3a3666;color:var(--muted)}
+  .stage h3{font-size:1.15rem;font-weight:600}
+  .s-place{font-size:.8rem;color:var(--muted)}
+  .s-keys{font-weight:700;font-size:.92rem}
+  .s-stars{display:flex;gap:4px;min-height:16px}
+  .s-stars i{width:16px;height:16px;background:#2a2550;clip-path:var(--star)}
+  .s-stars i.on{background:var(--token)}
+  .s-best{font-size:.8rem;color:var(--muted);min-height:1.2em}
+  .stage button{margin-top:auto;width:100%;padding:9px 14px}
+
+  /* ---- lesson ---- */
+  .sign{background:#05050d;border:1px solid var(--rule);border-radius:20px;padding:20px 24px 16px}
+  .line{font-family:var(--display);font-weight:600;font-size:clamp(1.5rem,1rem + 2.2vw,2.5rem);line-height:1.45;letter-spacing:.05em;color:#8d8ab8;min-height:1.45em}
+  .ch{display:inline-block;border-radius:6px;padding:0 1px;transition:color .1s}
+  .ch.sp{min-width:.5em}
+  .ch.done{color:var(--cyan)}
+  .ch.cur{background:var(--token);color:#141019;box-shadow:0 0 18px -2px rgba(255,201,60,.7)}
+  .ch.sp.cur{background:none;box-shadow:none;border-bottom:4px solid var(--token)}
+  .ch.sp.done{border-bottom:0}
+  .ch.bad{animation:shake .28s}
+  .ch.cur.bad{background:var(--bad)}
+  @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  .upnext{margin:6px 0 0;font-family:var(--display);font-weight:500;font-size:clamp(1rem,.8rem + .8vw,1.3rem);letter-spacing:.05em;color:#524f80;min-height:1.5em}
+  .linestars{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .linestars i{width:14px;height:14px;background:#2a2550;clip-path:var(--star);transition:background .2s}
+  .linestars i.on{background:var(--token);animation:pop .45s ease}
+  .hint{margin:12px 0 0;color:var(--muted);font-size:.95rem;min-height:1.5em}
+  .hint b{color:var(--ink)}
+  .hint.warn{color:var(--token)}
+
+  .kb{display:grid;gap:7px;justify-content:center;margin-top:16px;user-select:none}
+  .krow{display:flex;gap:7px}
+  .krow:nth-child(2){transform:translateX(calc(var(--k) * .3))}
+  .krow:nth-child(3){transform:translateX(calc(var(--k) * .75))}
+  .key{
+    --fc:var(--muted);
+    position:relative;width:var(--k);height:var(--k);display:grid;place-items:center;
+    font-family:var(--display);font-weight:600;font-size:clamp(.8rem,.55rem + .9vw,1.15rem);text-transform:uppercase;
+    background:var(--card-2);border:1px solid var(--rule);border-bottom:4px solid var(--fc);border-radius:10px;color:var(--ink);
+  }
+  .key[data-f="lp"],.key[data-f="rp"]{--fc:var(--violet)}
+  .key[data-f="lr"],.key[data-f="rr"]{--fc:var(--pink)}
+  .key[data-f="lm"],.key[data-f="rm"]{--fc:var(--token)}
+  .key[data-f="li"],.key[data-f="ri"]{--fc:var(--cyan)}
+  .key.off{opacity:.25}
+  .key.bump::after{content:"";position:absolute;bottom:6px;width:42%;height:3px;border-radius:3px;background:rgba(255,255,255,.55)}
+  .key.next{background:var(--token);color:#141019;border-color:var(--token);border-bottom-color:#b88a14;box-shadow:0 0 22px 0 rgba(255,201,60,.65);animation:glow 1.1s ease-in-out infinite}
+  @keyframes glow{50%{box-shadow:0 0 30px 4px rgba(255,201,60,.9)}}
+  .key.hit{background:#1c3d36;border-color:var(--ok)}
+  .key.miss{background:#4a1d33;border-color:var(--bad)}
+  .key.space{width:calc(var(--k) * 6.2)}
+  .key.space.next{color:#141019}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:center;margin:14px 0 0;font-size:.82rem;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:12px;height:12px;border-radius:4px}
+
+  footer{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;color:var(--muted);font-size:.85rem}
+  footer p{margin:0;max-width:62ch}
+  footer button{font-size:.88rem;padding:6px 16px}
+
+  body{touch-action:manipulation}
+  .sign{position:relative}
+  #tap{position:absolute;left:0;top:0;width:1px;height:1px;opacity:.01;border:0;padding:0;font-size:16px;caret-color:transparent;background:transparent;color:transparent}
+
+  /* ---- progress code ---- */
+  .codebox{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:16px;padding:14px 16px;background:#05050d;border:1px solid var(--rule);border-radius:18px}
+  .codebox .lbl{font-size:.85rem;color:var(--muted)}
+  .code{font-family:var(--display);font-weight:700;font-size:clamp(1.3rem,1rem + 1.2vw,1.8rem);letter-spacing:.08em;color:var(--token);white-space:nowrap}
+  .codeload{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 0 auto}
+  .codeload input{font-family:var(--display);font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:var(--card-2);border:1px solid var(--rule);border-radius:12px;padding:9px 12px;width:10.5em}
+  .codemsg{flex-basis:100%;margin:0;font-size:.9rem;color:var(--muted);min-height:1.3em}
+  .codemsg.ok{color:var(--ok)} .codemsg.bad{color:var(--bad)}
+  .rcode{margin:12px 0 0;padding:10px 12px;border:1px dashed var(--token);border-radius:14px;font-size:.92rem;color:var(--muted)}
+  .rcode .code{display:block;font-size:1.7rem}
+
+  /* ---- tablet mode: the lesson sign sits in the sky, the scene shrinks to fit above the iPad keyboard ---- */
+  body.tablet #playPanel{display:none}
+  body:not(.playing) .scene > .sign{display:none}
+  body.tablet.playing main{padding-top:8px;gap:8px}
+  body.tablet.playing .bar{gap:8px}
+  body.tablet.playing .bar h2{font-size:1rem}
+  body.tablet.playing .pill{min-width:0;padding:3px 12px;flex-direction:row;gap:6px;align-items:baseline}
+  body.tablet.playing .pill b{font-size:1rem}
+  body.tablet.playing #btnBack{padding:6px 14px;font-size:.9rem}
+  body.tablet.playing .scene{width:100%;max-width:calc((var(--vvh,100vh) - 84px) * 3);margin:0 auto}
+  body.tablet.playing canvas{aspect-ratio:960/320}
+  .scene > .sign{position:absolute;left:10px;right:10px;top:10px;padding:8px 14px;background:rgba(5,5,13,.74);backdrop-filter:blur(2px);border-radius:16px;cursor:text}
+  .scene > .sign .line{font-size:clamp(1.05rem,.7rem + 1.8vw,1.7rem)}
+  .scene > .sign .upnext{display:none}
+  .scene > .sign .linestars{margin-top:4px;gap:4px}
+  .scene > .sign .linestars i{width:11px;height:11px}
+  .scene > .sign .hint{margin:4px 0 0;font-size:.85rem;min-height:1.3em}
+
+  @media (max-width:640px){
+    .menu-ov .copy{max-width:62%}
+    .pill{min-width:92px;padding:5px 14px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .key.next{animation:none}
+    .rstars i.on,.linestars i.on,.ch.bad{animation:none}
+  }
+</style>
+</head>
+<body>
+<main id="app" tabindex="-1">
+
+  <div class="bar" id="hud" hidden>
+    <h2 id="stageTitle">Stage 1 <small>Uluru</small></h2>
+    <div class="pills">
+      <div class="pill"><b id="pSpeed">0 km/h</b><span>Emu speed</span></div>
+      <div class="pill"><b id="pWpm">–</b><span>Words per minute</span></div>
+      <div class="pill"><b id="pAcc">–</b><span>Accuracy</span></div>
+      <div class="pill"><b id="pDist">0 / 30 km</b><span>Distance</span></div>
+    </div>
+    <button id="btnBack" type="button">Stage map (Esc)</button>
+  </div>
+
+  <section class="scene" aria-label="Game scene">
+    <canvas id="scene" width="960" height="420" role="img" aria-label="A quokka in a space helmet rides an emu across the outback at night under the Southern Cross."></canvas>
+
+    <div class="overlay menu-ov" id="menuOv">
+      <div class="copy">
+        <h1>Emu Express</h1>
+        <p>Type to run. Ride an emu across the outback under the Southern Cross. An emu tops out near <b>50 km/h</b>, so how fast can you type?</p>
+        <button class="primary big" id="btnStart" type="button">Start Stage 1</button>
+      </div>
+    </div>
+
+    <div class="overlay result-ov" id="resultOv" hidden>
+      <div class="result" role="status" aria-live="polite">
+        <h2 id="rTitle">Stage complete</h2>
+        <div class="rstars" id="rStars"><i></i><i></i><i></i></div>
+        <div class="rstats">
+          <div><b id="rWpm">0</b><span>Words per minute</span></div>
+          <div><b id="rAcc">0%</b><span>Accuracy</span></div>
+          <div><b id="rTime">0:00</b><span>Time</span></div>
+        </div>
+        <p class="rnote" id="rNote"></p>
+        <div class="rcode">Your new progress code. Write it in your book.<span class="code" id="rCode"></span></div>
+        <div class="rbtns">
+          <button id="rAgain" type="button">Try again</button>
+          <button id="rNext" class="primary" type="button">Next stage</button>
+          <button id="rMap" type="button">Stage map</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="mapPanel">
+    <h2>Around Australia</h2>
+    <p>Ten stages from Uluru to Perth, one new set of keys at a time. Three are playable in this prototype.</p>
+    <div class="codebox">
+      <div>
+        <div class="lbl">Your progress code. Write it in your book.</div>
+        <div class="code" id="myCode">EMU-2222-9</div>
+      </div>
+      <form class="codeload" id="codeForm" autocomplete="off">
+        <label class="lbl" for="codeIn">Have a code?</label>
+        <input id="codeIn" type="text" placeholder="EMU-XXXX-X" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="14">
+        <button type="submit">Load code</button>
+        <button type="button" id="btnClear">New student</button>
+      </form>
+      <p class="codemsg" id="codeMsg" role="status" aria-live="polite"></p>
+    </div>
+    <div class="stages" id="stages"></div>
+  </section>
+
+  <section class="panel" id="playPanel" hidden>
+    <div class="sign" id="sign">
+      <input id="tap" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="next" aria-label="Type the line here">
+      <div class="line" id="line" aria-label="Current line to type"></div>
+      <div class="upnext" id="upnext" aria-hidden="true"></div>
+      <div class="linestars" id="linestars" aria-hidden="true"></div>
+      <p class="hint" id="hint"></p>
+    </div>
+    <div class="kb" id="kb" aria-hidden="true"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--violet)"></i>Little finger</span>
+      <span><i style="background:var(--pink)"></i>Ring finger</span>
+      <span><i style="background:var(--token)"></i>Middle finger</span>
+      <span><i style="background:var(--cyan)"></i>Pointer finger</span>
+    </div>
+  </section>
+
+  <footer>
+    <p>Prototype. Works with a keyboard or the iPad on-screen keyboard. Progress lives in your code. Nothing is sent anywhere.</p>
+    <div class="pills">
+      <button id="btnTablet" type="button" aria-pressed="false">Tablet mode: off</button>
+      <button id="btnSound" type="button" aria-pressed="false">Sound: off</button>
+    </div>
+  </footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const W = 960, H = 420;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mod = (a, n) => ((a % n) + n) % n;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+  /* ------------------------------------------------------------------ stages */
+  const ALPHA = "abcdefghijklmnopqrstuvwxyz";
+  const STAGES = [
+    { id:1, name:"Uluru", place:"Northern Territory", keys:"Home row", km:30, lines:9, playable:true,
+      allowed:"asdfghjkl;", landmark:"uluru", props:["spinifex","oak","spinifex","mound","salt"],
+      theme:{top:"#02020a",mid:"#16123f",glow:"#b8507a",ridge:"#1a1233",ridge2:"#251744",prop:"#120d24",ground:"#3a1830",track:"#5a2a3c",dust:"#c98a6a"},
+      drills:["asdf jkl; asdf jkl;","fdsa ;lkj fdsa ;lkj","fgf jhj fgf jhj gag hah"],
+      pool:["ask","dad","sad","lad","lass","fall","flag","flask","glad","gash","half","hall","hash","dash","flash","shall","salad","alfalfa","glass","slash","add","all","ash","gas","has","had","lag","sag","jag","dahl","halls","falls","flags","slag","gall","gaff","lash","sash","fads","jaffa"] },
+    { id:2, name:"Kakadu", place:"Northern Territory", keys:"Top row", km:30, lines:9, playable:true,
+      allowed:"asdfghjkl;qwertyuiop", landmark:"escarp", props:["paperbark","salt","paperbark","spinifex","mound"],
+      theme:{top:"#02060c",mid:"#0c2a3e",glow:"#3aa6a0",ridge:"#0e2232",ridge2:"#123246",prop:"#0a1a24",ground:"#10303a",track:"#2a4a48",dust:"#9fcfc0"},
+      drills:["qwer uiop qwer uiop","tyty uiui opop wewe","pop top tip ripe quit"],
+      pool:["uluru","kakadu","koala","galah","quokka","quoll","platypus","wattle","jarrah","karri","tuart","sheoak","gidgee","yowie","report","pretty","quote","tired","queue","pour","your","worry","suit","tour","pie","tie","wipe","write","dirt","pure","hurt","tree","free","trip","ghost","kiwi","outer","paper","power","typed","quiet","plus","rough","tough","laugh","digital","joyful","hostile","tiger","forest","tuesday","pillar","flood","sulphur"] },
+    { id:3, name:"Nullarbor", place:"South Australia and WA", keys:"Bottom row", km:30, lines:9, playable:true,
+      allowed:ALPHA, landmark:"mill", props:["salt","salt","spinifex","mound","salt"],
+      theme:{top:"#05030a",mid:"#241a45",glow:"#e0a040",ridge:"#241a3a",ridge2:"#33244a",prop:"#160f26",ground:"#3a2a30",track:"#5c4040",dust:"#d8b080"},
+      drills:["zxcv bnm zxcv bnm","vbv nmn cxc zxz vbv","maze next zinc box vim"],
+      pool:["emu","dingo","kangaroo","wombat","wallaby","outback","kookaburra","billabong","boomerang","bushfire","campfire","swagman","spinifex","echidna","cockatoo","waratah","billy","damper","bilby","numbat","quokka","dugong","barramundi","crocodile","cassowary","desert","sunset","starlight","galaxy","comet","planet","orbit","rocket","cosmos","nebula","meteor","southern","cross","milky","way","red","dust","long","road","big","sky","night","camp","stars","windmill","horizon","plain","emu","crow","magpie","galah"] },
+    { id:4, name:"Pilbara", place:"Western Australia", keys:"Capital letters" },
+    { id:5, name:"Daintree", place:"Queensland", keys:"Punctuation" },
+    { id:6, name:"Whitsundays", place:"Queensland", keys:"Numbers" },
+    { id:7, name:"Blue Mountains", place:"New South Wales", keys:"Speed runs" },
+    { id:8, name:"Great Ocean Road", place:"Victoria", keys:"Accuracy runs" },
+    { id:9, name:"Tasmania", place:"Tasmania", keys:"Full sentences" },
+    { id:10, name:"Perth", place:"Western Australia", keys:"Home stretch" }
+  ];
+  const stageById = id => STAGES.find(s => s.id === id);
+
+  /* ------------------------------------------------------------------ keyboard */
+  const ROWS = [
+    [["q","lp"],["w","lr"],["e","lm"],["r","li"],["t","li"],["y","ri"],["u","ri"],["i","rm"],["o","rr"],["p","rp"]],
+    [["a","lp"],["s","lr"],["d","lm"],["f","li"],["g","li"],["h","ri"],["j","ri"],["k","rm"],["l","rr"],[";","rp"]],
+    [["z","lp"],["x","lr"],["c","lm"],["v","li"],["b","li"],["n","ri"],["m","ri"],[",","rm"],[".","rr"]]
+  ];
+  const FINGER = {lp:"left little finger",lr:"left ring finger",lm:"left middle finger",li:"left pointer finger",
+                  ri:"right pointer finger",rm:"right middle finger",rr:"right ring finger",rp:"right little finger"};
+  const KEYS = {}, FOF = {};
+  function buildKeyboard(){
+    const kb = $("#kb"); kb.innerHTML = "";
+    ROWS.forEach(row => {
+      const r = document.createElement("div"); r.className = "krow";
+      row.forEach(([c,f]) => {
+        const k = document.createElement("div"); k.className = "key"; k.dataset.f = f; k.textContent = c;
+        if (c === "f" || c === "j") k.classList.add("bump");
+        r.appendChild(k); KEYS[c] = k; FOF[c] = f;
+      });
+      kb.appendChild(r);
+    });
+    const r = document.createElement("div"); r.className = "krow";
+    const sp = document.createElement("div"); sp.className = "key space"; sp.textContent = "space"; sp.style.setProperty("--fc","var(--muted)");
+    r.appendChild(sp); kb.appendChild(r); KEYS[" "] = sp; FOF[" "] = "thumb";
+  }
+
+  /* ------------------------------------------------------------------ saved progress */
+  const SAVE_KEY = "emuExpress.v1";
+  let save = { best:{} };
+  try { const raw = localStorage.getItem(SAVE_KEY); if (raw) save = JSON.parse(raw) || save; } catch (e) {}
+  if (!save.best) save.best = {};
+  function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+  /* ------------------------------------------------------------------ progress codes: stars for all 10 stages in 4 characters plus a check character */
+  const CODE_CH = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  function checksum(body){ let c = 7; for (let i = 0; i < body.length; i++) c += (i + 3) * CODE_CH.indexOf(body[i]); return c % 32; }
+  function makeCode(){
+    let n = 0;
+    STAGES.forEach((s, i) => { const b = save.best[s.id]; n += (b ? clamp(b.stars | 0, 0, 3) : 0) * Math.pow(4, i); });
+    let body = "";
+    for (let i = 0; i < 4; i++) { body = CODE_CH[n % 32] + body; n = Math.floor(n / 32); }
+    return "EMU-" + body + "-" + CODE_CH[checksum(body)];
+  }
+  function readCode(raw){
+    let s = String(raw).toUpperCase().replace(/[^0-9A-Z]/g, "");
+    if (s.length === 8 && s.startsWith("EMU")) s = s.slice(3);
+    if (s.length !== 5 || [...s].some(c => !CODE_CH.includes(c))) return null;
+    const body = s.slice(0, 4);
+    if (CODE_CH[checksum(body)] !== s[4]) return null;
+    let n = 0; for (const c of body) n = n * 32 + CODE_CH.indexOf(c);
+    const stars = {}; STAGES.forEach(st => { stars[st.id] = n % 4; n = Math.floor(n / 4); });
+    return stars;
+  }
+
+  /* ------------------------------------------------------------------ tablet mode */
+  let tablet = false, viewTop = 0;
+  try { const p = localStorage.getItem("emuExpress.tablet"); tablet = p ? p === "on" : null; } catch (e) { tablet = null; }
+  if (tablet === null) tablet = navigator.maxTouchPoints > 1 || matchMedia("(pointer: coarse)").matches;
+
+  /* ------------------------------------------------------------------ sound (off by default) */
+  let actx = null, soundOn = false;
+  function tone(f, d, type, v, slide){
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(f * slide, t + d);
+      g.gain.setValueAtTime(v || .05, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + d);
+    } catch (e) {}
+  }
+  const sndOk = () => tone(520 + Math.random() * 80, .07, "sine", .035);
+  const sndBad = () => tone(150, .16, "sawtooth", .04, .6);
+  const sndLine = () => { tone(660,.12,"triangle",.05); setTimeout(()=>tone(880,.16,"triangle",.05),90); };
+  const sndWin = () => [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.22,"triangle",.06),i*110));
+
+  /* ------------------------------------------------------------------ game state */
+  const G = { state:"menu", stage:STAGES[0], lines:[], li:0, ci:0, spans:[], correct:0, total:0, missed:{},
+              started:false, activeMs:0, lastTs:0, hits:[], totalChars:0, doneChars:0, starsGot:0, stars:[], last:null };
+  const S = { t:0, off:0, kmh:18, phase:0, stumble:0, jump:-1, emuX:660, dust:[], sparks:[], shoot:null, nextShoot:6, shake:0 };
+  let themeNow = STAGES[0].theme;
+
+  /* ------------------------------------------------------------------ DOM refs */
+  const canvas = $("#scene"), ctx = canvas.getContext("2d");
+  const lineEl = $("#line"), upEl = $("#upnext"), hintEl = $("#hint"), lsEl = $("#linestars"), tapEl = $("#tap");
+  let prevNext = null;
+
+  function makeLines(st){
+    const r = rng((Date.now() & 0xffff) + st.id * 97);
+    const pool = st.pool.filter(w => [...w].every(c => st.allowed.includes(c)));
+    const out = st.drills.slice();
+    while (out.length < st.lines) {
+      const line = [];
+      while (line.join(" ").length < 19) {
+        const w = pool[(r() * pool.length) | 0];
+        if (!line.includes(w)) line.push(w);
+      }
+      let text = line.join(" ");
+      if (text.length > 30) { line.pop(); text = line.join(" "); }
+      out.push(text);
+    }
+    // The semicolon is on a second page of the iPad keyboard, so leave it out in tablet mode.
+    return out.map(l => tablet ? l.replace(/;/g, "").replace(/\s+/g, " ").trim() : l);
+  }
+
+  function setLayout(){
+    const playing = G.state === "play" || (G.state === "finish" && $("#resultOv").hidden);
+    document.body.classList.toggle("tablet", tablet);
+    document.body.classList.toggle("playing", playing);
+    viewTop = tablet && playing ? 100 : 0;
+    const sign = $("#sign"), scene = $(".scene"), panel = $("#playPanel");
+    if (tablet) { if (sign.parentNode !== scene) scene.insertBefore(sign, $("#menuOv")); }
+    else if (sign.parentNode !== panel) panel.insertBefore(sign, panel.firstChild);
+    const tb = $("#btnTablet"); tb.textContent = "Tablet mode: " + (tablet ? "on" : "off"); tb.setAttribute("aria-pressed", String(tablet));
+    fit();
+  }
+  function startHint(){
+    return tablet ? "Tap the first letter on the iPad keyboard to start the emu."
+                  : "Rest your fingers on the home row. Type the <b>glowing key</b> to start the emu.";
+  }
+
+  /* ------------------------------------------------------------------ navigation */
+  function nextStageToPlay(){
+    const open = STAGES.filter(s => s.playable);
+    return open.find(s => !save.best[s.id]) || open[open.length - 1];
+  }
+  function showMenu(){
+    G.state = "menu";
+    $("#menuOv").hidden = false; $("#resultOv").hidden = true;
+    $("#hud").hidden = true; $("#playPanel").hidden = true; $("#mapPanel").hidden = false;
+    themeNow = nextStageToPlay().theme;
+    $("#btnStart").textContent = "Start Stage " + nextStageToPlay().id;
+    tapEl.blur(); setLayout();
+    renderMap();
+    $("#app").focus({ preventScroll:true });
+  }
+  function startStage(id){
+    const st = stageById(id); if (!st || !st.playable) return;
+    G.stage = st; G.lines = makeLines(st); G.li = 0; G.ci = 0; G.correct = 0; G.total = 0; G.missed = {};
+    G.started = false; G.activeMs = 0; G.lastTs = 0; G.hits = []; G.starsGot = 0;
+    G.totalChars = G.lines.reduce((n, l) => n + l.length, 0); G.doneChars = 0;
+    G.state = "play"; themeNow = st.theme; S.off = 0; S.kmh = 0; S.stumble = 0; S.jump = -1;
+    makeProps(st);
+    $("#menuOv").hidden = true; $("#resultOv").hidden = true;
+    $("#mapPanel").hidden = true; $("#playPanel").hidden = false; $("#hud").hidden = false;
+    $("#stageTitle").innerHTML = "Stage " + st.id + " <small>" + st.name + " · " + st.keys + "</small>";
+    lsEl.innerHTML = G.lines.map(() => "<i></i>").join("");
+    for (const c in KEYS) KEYS[c].classList.toggle("off", c !== " " && !st.allowed.includes(c));
+    setLine(); updateHud();
+    hintEl.className = "hint";
+    hintEl.innerHTML = startHint();
+    setLayout();
+    if (tablet) { tapEl.value = ""; tapEl.focus({ preventScroll:true }); }
+    else {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      $("#app").focus({ preventScroll:true });
+    }
+    window.scrollTo({ top:0, behavior:"auto" });
+  }
+
+  /* ------------------------------------------------------------------ lesson sign */
+  function setLine(){
+    const line = G.lines[G.li];
+    lineEl.innerHTML = ""; G.spans = [];
+    for (const ch of line) {
+      const s = document.createElement("span");
+      s.className = ch === " " ? "ch sp" : "ch"; s.textContent = ch === " " ? " " : ch;
+      lineEl.appendChild(s); G.spans.push(s);
+    }
+    G.ci = 0; G.spans[0].classList.add("cur");
+    upEl.textContent = G.lines[G.li + 1] || "";
+    setNextKey(line[0]);
+  }
+  function setNextKey(ch){
+    if (prevNext) prevNext.classList.remove("next");
+    const k = KEYS[ch]; if (k) { k.classList.add("next"); prevNext = k; }
+    if (G.started) {
+      const f = FOF[ch];
+      const name = ch === " " ? "Space bar" : ch.toUpperCase();
+      hintEl.className = "hint";
+      hintEl.innerHTML = "Next: <b>" + name + "</b>. Use your " + (f === "thumb" ? "thumb" : FINGER[f]) + ".";
+    }
+  }
+
+  /* ------------------------------------------------------------------ typing */
+  function onKey(e){
+    if (G.state !== "play") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape") { e.preventDefault(); showMenu(); return; }
+    if (e.target === tapEl) return; // the hidden input's own input event handles these keys
+    if (e.key.length !== 1) { if (["Backspace","Tab"," "].includes(e.key)) e.preventDefault(); return; }
+    e.preventDefault();
+    const target = G.lines[G.li][G.ci];
+    if (e.key !== target && e.key.toLowerCase() === target && e.getModifierState && e.getModifierState("CapsLock")) {
+      hintEl.className = "hint warn"; hintEl.textContent = "Caps Lock is on. Press it once to turn it off."; return;
+    }
+    typeChar(e.key);
+  }
+  function typeChar(key){
+    if (G.state !== "play") return;
+    const target = G.lines[G.li][G.ci];
+    if (tablet && key !== target && key.toLowerCase() === target) key = target; // the iPad may add a capital
+    const e = { key };
+    const now = performance.now();
+    if (G.lastTs) G.activeMs += Math.min(now - G.lastTs, 3000);
+    G.lastTs = now;
+    G.total++;
+    const kEl = KEYS[e.key.toLowerCase()];
+    if (e.key === target) {
+      G.started = true; G.correct++; G.doneChars++; G.hits.push(now); sndOk();
+      if (kEl) flash(kEl, "hit");
+      const s = G.spans[G.ci]; s.classList.remove("cur"); s.classList.add("done");
+      G.ci++;
+      if (G.ci >= G.lines[G.li].length) lineDone();
+      else { G.spans[G.ci].classList.add("cur"); setNextKey(G.lines[G.li][G.ci]); }
+    } else {
+      G.missed[target] = (G.missed[target] || 0) + 1; sndBad();
+      if (kEl) flash(kEl, "miss");
+      const s = G.spans[G.ci]; s.classList.remove("bad"); void s.offsetWidth; s.classList.add("bad");
+      S.stumble = 1; S.kmh *= .5; if (!reduce) S.shake = .25;
+      puffDust(8);
+      if (G.started) { hintEl.className = "hint warn"; hintEl.innerHTML = tablet ? "Oops. Look for the <b>yellow letter</b> and try again." : "Oops. Look for the <b>glowing key</b> and try again."; }
+    }
+    updateHud();
+  }
+  function flash(el, cls){
+    el.classList.remove("hit", "miss"); void el.offsetWidth; el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), 150);
+  }
+  function lineDone(){
+    lsEl.children[G.li].classList.add("on"); G.starsGot++;
+    S.jump = 0; burst(S.emuX + 70, 150, 12); sndLine();
+    G.li++;
+    if (G.li >= G.lines.length) { finishStage(); return; }
+    setLine();
+  }
+
+  /* ------------------------------------------------------------------ results */
+  function wpmNow(){ return G.activeMs > 2000 ? (G.correct / 5) / (G.activeMs / 60000) : 0; }
+  function accNow(){ return G.total ? G.correct / G.total : 1; }
+  function updateHud(){
+    $("#pSpeed").textContent = Math.round(S.kmh) + " km/h";
+    const w = wpmNow(); $("#pWpm").textContent = w ? Math.round(w) : "–";
+    $("#pAcc").textContent = G.total ? Math.round(accNow() * 100) + "%" : "–";
+    const prog = G.totalChars ? G.doneChars / G.totalChars : 0;
+    $("#pDist").textContent = (prog * G.stage.km).toFixed(1) + " / " + G.stage.km + " km";
+  }
+  function finishStage(){
+    G.state = "finish";
+    if (prevNext) { prevNext.classList.remove("next"); prevNext = null; }
+    hintEl.className = "hint"; hintEl.textContent = "Stage complete. Well ridden!";
+    tapEl.blur();
+    const acc = accNow(), wpm = wpmNow(), secs = Math.round(G.activeMs / 1000);
+    const stars = acc >= .95 ? 3 : acc >= .85 ? 2 : 1;
+    const old = save.best[G.stage.id];
+    const better = !old || stars > old.stars || (stars === old.stars && (old.wpm == null || wpm > old.wpm));
+    const newBest = old && old.wpm != null && wpm > old.wpm;
+    if (better) save.best[G.stage.id] = { stars, wpm:Math.round(wpm), acc:Math.round(acc * 100) };
+    persist();
+    G.last = { stars, wpm, acc, secs, newBest };
+    S.jump = 0; burst(S.emuX + 70, 150, 26); sndWin();
+    setTimeout(showResult, 1300);
+  }
+  function showResult(){
+    if (G.state !== "finish") return;
+    const r = G.last;
+    $("#rTitle").textContent = "Stage " + G.stage.id + " complete: " + G.stage.name;
+    [...$("#rStars").children].forEach((el, i) => el.classList.toggle("on", i < r.stars));
+    $("#rWpm").textContent = Math.round(r.wpm);
+    $("#rAcc").textContent = Math.round(r.acc * 100) + "%";
+    $("#rTime").textContent = Math.floor(r.secs / 60) + ":" + String(r.secs % 60).padStart(2, "0");
+    const miss = Object.entries(G.missed).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c === " " ? "space" : c.toUpperCase());
+    let note = r.stars === 3 ? "Super accurate. Now you can start building speed."
+             : r.stars === 2 ? "Good accuracy. Slow and steady is faster in the end."
+             : "Accuracy first. Slow down a little and let the emu find its rhythm.";
+    if (r.newBest) note = "New personal best for this stage. " + note;
+    $("#rNote").innerHTML = note + (miss.length ? " <b>Keys to practise: " + miss.join(", ") + ".</b>" : "");
+    const nxt = STAGES.find(s => s.id === G.stage.id + 1 && s.playable);
+    $("#rNext").hidden = !nxt; $("#rNext").dataset.id = nxt ? nxt.id : "";
+    $("#rCode").textContent = makeCode();
+    $("#resultOv").hidden = false;
+    setLayout(); window.scrollTo(0, 0);
+    $("#rAgain").focus({ preventScroll:true });
+  }
+
+  /* ------------------------------------------------------------------ map */
+  function renderMap(){
+    const wrap = $("#stages"); wrap.innerHTML = "";
+    $("#myCode").textContent = makeCode();
+    const rec = nextStageToPlay();
+    STAGES.forEach(st => {
+      const b = save.best[st.id];
+      const a = document.createElement("article");
+      a.className = "stage" + (st.playable ? "" : " locked") + (st.playable && rec.id === st.id ? " ready" : "");
+      a.innerHTML =
+        '<div class="s-top"><span class="s-no">' + st.id + '</span><h3>' + st.name + '</h3></div>' +
+        '<div class="s-place">' + st.place + '</div>' +
+        '<div class="s-keys">' + st.keys + '</div>' +
+        '<div class="s-stars" aria-label="' + (b ? b.stars : 0) + ' of 3 stars">' + [0,1,2].map(i => '<i class="' + (b && i < b.stars ? "on" : "") + '"></i>').join("") + '</div>' +
+        '<div class="s-best">' + (b ? (b.wpm != null ? "Best: " + b.wpm + " wpm, " + b.acc + "%" : "Stars loaded from your code") : st.playable ? "Not played yet" : "Coming soon") + '</div>';
+      const btn = document.createElement("button"); btn.type = "button";
+      if (st.playable) { btn.textContent = b ? "Play again" : "Play"; if (!b) btn.className = "primary"; btn.addEventListener("click", () => startStage(st.id)); }
+      else { btn.textContent = "Coming soon"; btn.disabled = true; }
+      a.appendChild(btn); wrap.appendChild(a);
+    });
+  }
+
+  /* ================================================================== SCENE */
+  let props = [];
+  function makeProps(st){
+    const r = rng(st.id * 131); props = [];
+    for (let i = 0; i < 26; i++) props.push({ x:i * (1600 / 26) + r() * 40, kind:st.props[(r() * st.props.length) | 0], s:.75 + r() * .7 });
+  }
+  makeProps(STAGES[0]);
+
+  const rs = rng(42);
+  const starsBg = Array.from({ length:170 }, () => ({ x:rs() * W, y:rs() * 232, r:.5 + rs() * 1.3, p:rs() * 6.28, c:rs() < .25 ? "#ffe9a8" : rs() < .5 ? "#cfd8ff" : "#fff" }));
+  const mw = Array.from({ length:300 }, () => ({ u:(rs() - .5) * 1500, v:(rs() + rs() + rs() - 1.5) * 34, r:.4 + rs() * 1.1, a:.25 + rs() * .6 }));
+  const cross = [{ x:805, y:44, r:2.8 }, { x:810, y:114, r:3.4 }, { x:772, y:82, r:2.3 }, { x:846, y:74, r:2.6 }, { x:828, y:98, r:1.5 }];
+  const rp = rng(9);
+  const pebbles = Array.from({ length:60 }, () => { const y = 292 + rp() * 120; return { x:rp() * 1440, y, r:1.2 + rp() * 3, par:.55 + ((y - 292) / 120) * .9 }; });
+  const tufts = Array.from({ length:12 }, (_, i) => ({ x:i * 125 + rp() * 60, s:.8 + rp() * .8 }));
+  const shag = Array.from({ length:26 }, () => { const a = rp() * 6.28, d = Math.sqrt(rp()); return { x:Math.cos(a) * d * 46, y:Math.sin(a) * d * 26, l:8 + rp() * 10 }; });
+
+  function starShape(x, y, r, rot){
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const a = rot - Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; ctx[i ? "lineTo" : "moveTo"](x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    ctx.closePath();
+  }
+  function puffDust(n){
+    for (let i = 0; i < n; i++) S.dust.push({ x:S.emuX - 24 + Math.random() * 20, y:372 - Math.random() * 6, vx:-(30 + Math.random() * 60), vy:-(10 + Math.random() * 40), life:.7, max:.7, r:2 + Math.random() * 3 });
+  }
+  function burst(x, y, n){
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = 80 + Math.random() * 180; S.sparks.push({ x, y, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 90, life:1, r:5 + Math.random() * 6, rot:Math.random() * 6, c:Math.random() < .7 ? "#FFC93C" : Math.random() < .5 ? "#6FD6F2" : "#F06BB4" }); }
+  }
+
+  /* ---- landmarks (they grow as you get closer, so distance is visible) ---- */
+  function drawUluru(cx, base, s){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    const g = ctx.createLinearGradient(0, -80, 0, 0); g.addColorStop(0, "#8a3a56"); g.addColorStop(.5, "#4d2146"); g.addColorStop(1, "#241038");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-210, 0);
+    ctx.bezierCurveTo(-200, -30, -170, -52, -120, -62); ctx.bezierCurveTo(-70, -74, -20, -80, 40, -78);
+    ctx.bezierCurveTo(100, -76, 160, -60, 200, -34); ctx.bezierCurveTo(212, -24, 216, -10, 220, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(20,8,32,.45)"; ctx.lineWidth = 2.5;
+    for (const gx of [-150, -100, -40, 20, 80, 140, 180]) { ctx.beginPath(); ctx.moveTo(gx, -58 + Math.abs(gx) * .1); ctx.quadraticCurveTo(gx + 7, -30, gx - 4, 0); ctx.stroke(); }
+    ctx.strokeStyle = "rgba(255,170,150,.38)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-120, -62);
+    ctx.bezierCurveTo(-70, -74, -20, -80, 40, -78); ctx.bezierCurveTo(100, -76, 160, -60, 200, -34); ctx.stroke();
+    ctx.restore();
+  }
+  function drawEscarp(cx, base, s, t){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    const g = ctx.createLinearGradient(0, -120, 0, 0); g.addColorStop(0, "#2c5560"); g.addColorStop(1, "#102530");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-260, 0);
+    [[-250,-90],[-200,-96],[-170,-110],[-100,-108],[-70,-120],[40,-118],[70,-104],[150,-106],[190,-92],[240,-94],[250,0]].forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(5,15,22,.5)"; ctx.lineWidth = 3;
+    for (let x = -230; x < 240; x += 34) { ctx.beginPath(); ctx.moveTo(x, -100); ctx.lineTo(x + 4, 0); ctx.stroke(); }
+    ctx.fillStyle = "rgba(200,235,255," + (.5 + .12 * Math.sin(t * 4)) + ")"; ctx.fillRect(-24, -118, 6, 118);
+    ctx.fillStyle = "rgba(200,235,255,.16)"; ctx.beginPath(); ctx.ellipse(-21, 2, 26, 8, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function drawMill(cx, base, s, t){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s * 1.3, s * 1.3);
+    ctx.strokeStyle = "#0c0818"; ctx.lineCap = "round"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-11, 0); ctx.lineTo(-3, -90); ctx.moveTo(11, 0); ctx.lineTo(3, -90); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-9, -22); ctx.lineTo(8, -44); ctx.moveTo(9, -22); ctx.lineTo(-8, -44); ctx.moveTo(-6, -58); ctx.lineTo(5, -74); ctx.moveTo(6, -58); ctx.lineTo(-5, -74); ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -96); ctx.lineTo(-30, -96); ctx.stroke(); ctx.fillStyle = "#0c0818"; ctx.fillRect(-36, -102, 8, 12);
+    ctx.lineWidth = 4; for (let i = 0; i < 6; i++) { const a = t * .9 + i * Math.PI / 3; ctx.beginPath(); ctx.moveTo(0, -96); ctx.lineTo(Math.cos(a) * 28, -96 + Math.sin(a) * 28); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, -96, 4, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  /* ---- props ---- */
+  function drawProp(p, x, y, th){
+    const s = p.s, c = th.prop;
+    ctx.fillStyle = c; ctx.strokeStyle = c; ctx.lineCap = "round";
+    if (p.kind === "spinifex") {
+      ctx.beginPath(); ctx.ellipse(x, y - 6 * s, 16 * s, 9 * s, 0, Math.PI, 0); ctx.fill();
+      ctx.lineWidth = 1.4; for (let i = -8; i <= 8; i++) { ctx.beginPath(); ctx.moveTo(x + i * 1.6 * s, y - 7 * s); ctx.lineTo(x + i * 2.8 * s, y - 24 * s + Math.abs(i) * .6); ctx.stroke(); }
+    } else if (p.kind === "oak") {
+      ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 2 * s, y - 50 * s); ctx.stroke();
+      ctx.lineWidth = 1.2; for (let i = 0; i < 18; i++) { const a = -Math.PI + i * Math.PI / 17; ctx.beginPath(); ctx.moveTo(x + 2 * s, y - 52 * s); ctx.lineTo(x + 2 * s + Math.cos(a) * 24 * s, y - 52 * s + Math.abs(Math.sin(a)) * 24 * s + 6 * s); ctx.stroke(); }
+    } else if (p.kind === "mound") {
+      ctx.beginPath(); ctx.moveTo(x - 12 * s, y); ctx.quadraticCurveTo(x - 9 * s, y - 30 * s, x - 3 * s, y - 44 * s);
+      ctx.quadraticCurveTo(x, y - 50 * s, x + 3 * s, y - 42 * s); ctx.quadraticCurveTo(x + 10 * s, y - 28 * s, x + 13 * s, y); ctx.closePath(); ctx.fill();
+    } else if (p.kind === "paperbark") {
+      ctx.strokeStyle = "rgba(190,175,215,.5)"; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 5 * s, y - 50 * s, x - 2 * s, y - 96 * s); ctx.stroke();
+      ctx.fillStyle = c; for (const o of [[-14,-98,16],[8,-104,18],[-2,-90,14]]) { ctx.beginPath(); ctx.ellipse(x + o[0] * s, y + o[1] * s, o[2] * s, 7 * s, 0, 0, 7); ctx.fill(); }
+    } else {
+      ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 15 * s, 6 * s, 0, Math.PI, 0); ctx.fill();
+      ctx.lineWidth = 1; for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(x + i * 3 * s, y - 6 * s); ctx.lineTo(x + i * 4 * s, y - 14 * s); ctx.stroke(); }
+    }
+  }
+
+  /* ---- the emu and the quokka ---- */
+  function leg(hx, hy, ph, col, moving, air){
+    let th = Math.sin(ph) * .8 * moving, bend = .22 + .95 * Math.max(0, Math.cos(ph)) * moving;
+    if (air) { th = .5; bend = 1.05; }
+    const kx = hx + Math.sin(th) * 36, ky = hy + Math.cos(th) * 36, a = th - bend;
+    let ax = kx + Math.sin(a) * 42, ay = Math.min(ky + Math.cos(a) * 42, 2);
+    ctx.strokeStyle = col; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.stroke();
+    ctx.lineWidth = 5.5; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(ax, ay); ctx.stroke();
+    ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(ax - 2, ay); ctx.lineTo(ax + 14, ay + (a > .3 ? -3 : 1)); ctx.stroke();
+  }
+  function drawEmu(x, footY, ph, moving, stumble, jump, t){
+    const bob = Math.sin(ph * 2) * 2.2 * moving, air = jump >= 0;
+    const jy = air ? -Math.sin(jump * Math.PI) * 46 : 0;
+    ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(x - 4, footY + 4, 58 - (air ? 10 : 0), 7, 0, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(x, footY + jy);
+    ctx.rotate(-stumble * .16 - (air ? .06 * Math.sin(jump * Math.PI) : 0));
+    const hipY = -90 + bob;
+    leg(-6, hipY + 14, ph + Math.PI, "#4b3e4f", moving, air);
+    // rump and body
+    const bg = ctx.createLinearGradient(0, hipY - 40, 0, hipY + 30); bg.addColorStop(0, "#9a857b"); bg.addColorStop(1, "#5b4850");
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.ellipse(-52, hipY - 10, 20, 30, .35, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, hipY - 6, 56, 36, -.1, 0, 7); ctx.fill();
+    ctx.strokeStyle = "rgba(255,220,190,.35)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, hipY - 6, 56, 36, -.1, Math.PI * 1.05, Math.PI * 1.85); ctx.stroke();
+    ctx.strokeStyle = "rgba(60,42,52,.8)"; ctx.lineWidth = 2;
+    for (const f of shag) { const sw = Math.sin(t * 6 + f.x) * 2 * moving; ctx.beginPath(); ctx.moveTo(f.x, hipY - 6 + f.y); ctx.quadraticCurveTo(f.x - f.l * .5, hipY - 2 + f.y + sw, f.x - f.l, hipY - 6 + f.y + f.l * .5); ctx.stroke(); }
+    // rider: quokka in a space helmet
+    const rx = -4, ry = hipY - 42;
+    ctx.strokeStyle = "#FFC93C"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(rx - 8, ry - 6);
+    ctx.bezierCurveTo(rx - 22, ry - 8 + Math.sin(t * 9) * 4, rx - 32, ry - 2 + Math.sin(t * 9 + 1) * 5, rx - 44, ry - 6 + Math.sin(t * 9 + 2) * 5); ctx.stroke();
+    ctx.fillStyle = "#e9e6ff"; ctx.beginPath(); ctx.ellipse(rx, ry, 11, 14, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#8C7CF0"; ctx.fillRect(rx - 11, ry - 1, 22, 4);
+    const hy = hipY - 22 - stumble * 16;
+    const neckX = 84 + Math.sin(ph * 2 + 1) * 3 * moving, neckY = hipY - 92 + stumble * 26;
+    ctx.strokeStyle = "#e9e6ff"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(rx + 6, ry - 4); ctx.lineTo(rx + 38, hipY - 32); ctx.stroke();
+    ctx.strokeStyle = "rgba(240,107,180,.9)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(rx + 38, hipY - 32); ctx.quadraticCurveTo(rx + 60, hipY - 60, neckX + 4, neckY + 6); ctx.stroke();
+    // neck and head
+    ctx.lineCap = "round"; ctx.strokeStyle = "#7a6a74"; ctx.lineWidth = 17; ctx.beginPath(); ctx.moveTo(36, hipY - 18); ctx.lineTo(48, hipY - 38); ctx.stroke();
+    ctx.strokeStyle = "#7f93aa"; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(40, hipY - 24); ctx.quadraticCurveTo(72, hy - 20, neckX, neckY); ctx.stroke();
+    ctx.fillStyle = "#7f93aa"; ctx.beginPath(); ctx.ellipse(neckX + 4, neckY - 2, 12, 8, .15, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2b2330"; ctx.beginPath(); ctx.moveTo(neckX + 13, neckY - 5); ctx.lineTo(neckX + 28, neckY + 1); ctx.lineTo(neckX + 13, neckY + 3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.arc(neckX + 6, neckY - 5, 2.8, 0, 7); ctx.fill();
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(neckX + 6.6, neckY - 5, 1.2, 0, 7); ctx.fill();
+    // helmet and face (drawn last so it sits in front)
+    const hx = rx + 2, hyy = ry - 30;
+    ctx.fillStyle = "#b88a62"; ctx.beginPath(); ctx.arc(hx + 1, hyy, 10.5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#a97a54"; ctx.beginPath(); ctx.arc(hx - 7, hyy - 8, 3.4, 0, 7); ctx.arc(hx + 7, hyy - 8, 3.4, 0, 7); ctx.fill();
+    ctx.fillStyle = "#e0bd98"; ctx.beginPath(); ctx.ellipse(hx + 6, hyy + 3, 5.5, 4, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2b2028"; ctx.beginPath(); ctx.arc(hx + 9, hyy + 1.6, 1.6, 0, 7); ctx.arc(hx + 3, hyy - 3, 1.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#2b2028"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(hx + 6, hyy + 3, 3.5, .15, 2.6); ctx.stroke();
+    ctx.fillStyle = "rgba(111,214,242,.16)"; ctx.beginPath(); ctx.arc(hx, hyy, 16, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#6FD6F2"; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(hx, hyy, 16, 0, 7); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(hx, hyy, 12.5, 3.6, 4.5); ctx.stroke();
+    ctx.fillStyle = "#8C7CF0"; ctx.fillRect(hx - 12, hyy + 14, 24, 4);
+    leg(10, hipY + 14, ph, "#6c5a66", moving, air);
+    ctx.restore();
+  }
+
+  /* ---- frame ---- */
+  function ridge(par, base, amp, color, ph){
+    const P = 1920; ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W + 8; x += 8) {
+      const u = mod(x + S.off * par, P) / P * Math.PI * 2;
+      ctx.lineTo(x, base - amp * (.5 + .28 * Math.sin(u * 2 + ph) + .16 * Math.sin(u * 5 + ph * 2) + .08 * Math.sin(u * 11 + ph * 3)));
+    }
+    ctx.lineTo(W + 8, H); ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  }
+
+  function frame(dt){
+    const th = themeNow, t = S.t, hz = 246;
+    const prog = G.state === "menu" ? .45 : (G.totalChars ? G.doneChars / G.totalChars : 0);
+    // sky
+    let g = ctx.createLinearGradient(0, 0, 0, hz + 20); g.addColorStop(0, th.top); g.addColorStop(.6, th.mid); g.addColorStop(1, th.mid);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    g = ctx.createLinearGradient(0, hz - 90, 0, hz + 14); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, th.glow + "88");
+    ctx.fillStyle = g; ctx.fillRect(0, hz - 90, W, 110);
+    // stars
+    for (const s of starsBg) {
+      const x = mod(s.x - S.off * .012, W), a = reduce ? .8 : .55 + .45 * Math.sin(t * 1.5 + s.p);
+      ctx.globalAlpha = a; ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(x, s.y, s.r, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // milky way
+    ctx.save(); ctx.translate(W * .46, 78); ctx.rotate(-.42);
+    g = ctx.createLinearGradient(0, -70, 0, 70); g.addColorStop(0, "rgba(180,170,255,0)"); g.addColorStop(.5, "rgba(190,180,255,.17)"); g.addColorStop(1, "rgba(180,170,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(-760, -70, 1520, 140);
+    for (const d of mw) { ctx.globalAlpha = d.a; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(d.u, d.v, d.r, 0, 7); ctx.fill(); }
+    ctx.restore(); ctx.globalAlpha = 1;
+    // Southern Cross
+    ctx.strokeStyle = "rgba(255,233,168,.18)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cross[0].x, cross[0].y); ctx.lineTo(cross[1].x, cross[1].y); ctx.moveTo(cross[2].x, cross[2].y); ctx.lineTo(cross[3].x, cross[3].y); ctx.stroke();
+    for (const c of cross) { const gl = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r * 5); gl.addColorStop(0, "rgba(255,246,201,.8)"); gl.addColorStop(1, "rgba(255,246,201,0)"); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 5, 0, 7); ctx.fill(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7); ctx.fill(); }
+    if (G.state === "menu") { ctx.fillStyle = "rgba(255,233,168,.55)"; ctx.font = "600 12px Nunito, sans-serif"; ctx.fillText("Southern Cross", 792, 138); }
+    // shooting star
+    if (S.shoot) { const s = S.shoot, k = s.t / .9; ctx.strokeStyle = "rgba(255,255,255," + (1 - k) + ")"; ctx.lineWidth = 2; ctx.beginPath(); const x = s.x + k * 260, y = s.y + k * 90; ctx.moveTo(x, y); ctx.lineTo(x - 70, y - 24); ctx.stroke(); }
+    // far ridge, landmark, near ridge
+    ridge(.05, hz + 6, 48, th.ridge, 0.7);
+    const ls = .42 + .58 * prog, lm = G.state === "menu" ? stageById(nextStageToPlay().id).landmark : G.stage.landmark;
+    const lx = G.state === "menu" ? 560 : 650 - prog * 40;
+    if (lm === "uluru") drawUluru(lx, hz + 14, ls); else if (lm === "escarp") drawEscarp(lx, hz + 14, ls, t); else drawMill(lx, hz + 14, ls, t);
+    ridge(.12, hz + 26, 34, th.ridge2, 2.1);
+    // ground
+    g = ctx.createLinearGradient(0, hz + 14, 0, H); g.addColorStop(0, th.ground); g.addColorStop(1, "#0b0713");
+    ctx.fillStyle = g; ctx.fillRect(0, hz + 14, W, H - hz);
+    ctx.fillStyle = th.glow + "33"; ctx.fillRect(0, hz + 14, W, 3);
+    for (const p of props) { const x = mod(p.x - S.off * .5 + 120, 1600) - 140; if (x > -60 && x < W + 60) drawProp(p, x, 286 + (p.s - .75) * 10, th); }
+    // track
+    g = ctx.createLinearGradient(0, 322, 0, 398); g.addColorStop(0, th.track + "00"); g.addColorStop(.35, th.track + "cc"); g.addColorStop(1, th.track + "55");
+    ctx.fillStyle = g; ctx.fillRect(0, 322, W, 76);
+    ctx.strokeStyle = "rgba(255,255,255,.07)"; ctx.lineWidth = 2; ctx.setLineDash([26, 38]);
+    for (const y of [346, 374]) { ctx.lineDashOffset = mod(S.off, 64); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    for (const p of pebbles) { const x = mod(p.x - S.off * p.par, 1440) - 20; if (x < W + 10) { ctx.beginPath(); ctx.ellipse(x, p.y, p.r * 1.4, p.r, 0, 0, 7); ctx.fill(); } }
+    // dust behind emu
+    for (const d of S.dust) { ctx.globalAlpha = Math.max(0, d.life / d.max) * .55; ctx.fillStyle = th.dust; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // emu
+    const moving = clamp(S.kmh / 7, 0, 1);
+    ctx.save(); if (S.shake > 0) ctx.translate((Math.random() - .5) * 5, (Math.random() - .5) * 4);
+    drawEmu(S.emuX, 372, S.phase, moving, S.stumble, S.jump, t);
+    ctx.restore();
+    // foreground grass
+    ctx.strokeStyle = "#07050f"; ctx.lineCap = "round"; ctx.lineWidth = 2.4;
+    for (const f of tufts) { const x = mod(f.x - S.off * 1.5, 1500) - 40; if (x > W + 30) continue; for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(x + i * 3, H + 2); ctx.quadraticCurveTo(x + i * 5, H - 16 * f.s, x + i * 9 + Math.sin(t * 2 + x) * 2, H - (30 - Math.abs(i) * 4) * f.s); ctx.stroke(); } }
+    // sparks
+    for (const s of S.sparks) { ctx.globalAlpha = clamp(s.life, 0, 1); ctx.fillStyle = s.c; starShape(s.x, s.y, s.r, s.rot); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // vignette
+    g = ctx.createRadialGradient(W / 2, H / 2, H * .45, W / 2, H / 2, W * .66); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.45)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+
+  /* ---- simulation ---- */
+  let hudTick = 0;
+  function step(dt){
+    S.t += dt;
+    let target = 0, eTarget = 280;
+    if (G.state === "menu") { target = 20; eTarget = 690; }
+    else if (G.state === "play") {
+      const now = performance.now(); while (G.hits.length && now - G.hits[0] > 2500) G.hits.shift();
+      const cps = G.hits.length / 2.5;
+      target = G.started ? clamp(cps * 12 * 1.4, 0, 50) : 0;
+      if (G.started && now - G.lastTs < 1500) target = Math.max(target, 5);
+    }
+    S.kmh += (target - S.kmh) * Math.min(1, dt * 2.6);
+    if (S.kmh < .15 && target === 0) S.kmh = 0;
+    S.emuX += (eTarget - S.emuX) * Math.min(1, dt * 2.2);
+    S.off += S.kmh * 8 * dt * (reduce ? .4 : 1);
+    S.phase += dt * (3 + S.kmh * .22) * (S.kmh > .5 ? 1 : 0);
+    S.stumble = Math.max(0, S.stumble - dt * 2.4);
+    S.shake = Math.max(0, S.shake - dt);
+    if (S.jump >= 0) { S.jump += dt / .75; if (S.jump >= 1) S.jump = -1; }
+    if (S.kmh > 3 && Math.random() < dt * S.kmh * .5) puffDust(1);
+    for (const d of S.dust) { d.life -= dt; d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 30 * dt; }
+    S.dust = S.dust.filter(d => d.life > 0);
+    for (const s of S.sparks) { s.life -= dt * .9; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 420 * dt; s.rot += dt * 4; }
+    S.sparks = S.sparks.filter(s => s.life > 0);
+    if (!reduce) {
+      if (S.shoot) { S.shoot.t += dt; if (S.shoot.t > .9) S.shoot = null; }
+      else { S.nextShoot -= dt; if (S.nextShoot <= 0) { S.shoot = { x:60 + Math.random() * 420, y:20 + Math.random() * 60, t:0 }; S.nextShoot = 7 + Math.random() * 8; } }
+    }
+    hudTick += dt; if (hudTick > .12 && G.state === "play") { hudTick = 0; updateHud(); }
+  }
+
+  let lastT = 0;
+  function loop(ts){
+    const dt = Math.min(.05, (ts - lastT) / 1000 || .016); lastT = ts;
+    if (!document.hidden) { step(dt); frame(dt); }
+    requestAnimationFrame(loop);
+  }
+  function fit(){
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = canvas.clientWidth || W;
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(w * (H - viewTop) / W * dpr);
+    const sc = canvas.width / W;
+    ctx.setTransform(sc, 0, 0, sc, 0, -viewTop * sc);
+  }
+  function setVvh(){
+    const v = window.visualViewport;
+    document.documentElement.style.setProperty("--vvh", (v ? v.height : innerHeight) + "px");
+  }
+
+  /* ------------------------------------------------------------------ wiring and boot */
+  function boot(data){
+    if (data && data.save && data.save.best) save = data.save;
+    buildKeyboard(); setVvh(); fit();
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(canvas); else addEventListener("resize", fit);
+    if (window.visualViewport) visualViewport.addEventListener("resize", () => { setVvh(); if (tablet && G.state === "play") window.scrollTo(0, 0); });
+    addEventListener("resize", setVvh);
+    document.addEventListener("keydown", onKey);
+
+    // tap to type: the hidden input brings up the iPad keyboard; each letter is read, then cleared
+    tapEl.addEventListener("input", () => { const v = tapEl.value; tapEl.value = ""; for (const ch of v) typeChar(ch); });
+    tapEl.addEventListener("blur", () => {
+      if (G.state === "play" && tablet) { hintEl.className = "hint warn"; hintEl.innerHTML = "Keyboard hidden. <b>Tap the picture</b> to keep typing."; }
+    });
+    tapEl.addEventListener("focus", () => {
+      if (G.state !== "play") return;
+      if (G.started) setNextKey(G.lines[G.li][G.ci]); else { hintEl.className = "hint"; hintEl.innerHTML = startHint(); }
+    });
+    $(".scene").addEventListener("click", e => {
+      if (G.state === "play" && tablet && !e.target.closest("button")) tapEl.focus({ preventScroll:true });
+    });
+    $("#btnTablet").addEventListener("click", () => {
+      tablet = !tablet;
+      try { localStorage.setItem("emuExpress.tablet", tablet ? "on" : "off"); } catch (e) {}
+      setLayout();
+      if (G.state === "play") { if (tablet) tapEl.focus({ preventScroll:true }); else { tapEl.blur(); $("#app").focus({ preventScroll:true }); } }
+    });
+
+    // progress codes
+    const msg = $("#codeMsg");
+    $("#codeForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const stars = readCode($("#codeIn").value);
+      if (!stars) { msg.className = "codemsg bad"; msg.textContent = "That code doesn't look right. Check each letter and number, then try again."; return; }
+      save.best = {};
+      for (const id in stars) if (stars[id]) save.best[id] = { stars:stars[id], wpm:null, acc:null };
+      persist(); $("#codeIn").value = "";
+      const total = Object.values(stars).reduce((a, b) => a + b, 0);
+      msg.className = "codemsg ok"; msg.textContent = "Welcome back! " + total + " star" + (total === 1 ? "" : "s") + " loaded.";
+      showMenu();
+    });
+    let clearArmed = 0;
+    $("#btnClear").addEventListener("click", e => {
+      const b = e.currentTarget;
+      if (Date.now() - clearArmed < 4000) {
+        clearArmed = 0; save.best = {}; persist(); b.textContent = "New student";
+        msg.className = "codemsg ok"; msg.textContent = "Progress cleared. Ready for the next rider.";
+        showMenu();
+      } else {
+        clearArmed = Date.now(); b.textContent = "Tap again to clear";
+        setTimeout(() => { if (clearArmed && Date.now() - clearArmed >= 3900) { clearArmed = 0; b.textContent = "New student"; } }, 4000);
+      }
+    });
+    $("#btnStart").addEventListener("click", () => startStage(nextStageToPlay().id));
+    $("#btnBack").addEventListener("click", showMenu);
+    $("#rAgain").addEventListener("click", () => startStage(G.stage.id));
+    $("#rNext").addEventListener("click", e => startStage(+e.currentTarget.dataset.id));
+    $("#rMap").addEventListener("click", showMenu);
+    $("#btnSound").addEventListener("click", e => {
+      soundOn = !soundOn; e.currentTarget.textContent = "Sound: " + (soundOn ? "on" : "off"); e.currentTarget.setAttribute("aria-pressed", String(soundOn)); sndOk();
+    });
+    showMenu();
+    requestAnimationFrame(loop);
+  }
+  if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => ({ save }));
+  if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot);
+  else boot((window.claude && window.claude.hot && window.claude.hot.data) || {});
+})();
+</script>
+</body>
+</html>
