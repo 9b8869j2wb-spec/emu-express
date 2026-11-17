@@ -197,6 +197,10 @@
   .codemsg.ok{color:var(--ok)} .codemsg.bad{color:var(--bad)}
   .rcode{margin:12px 0 0;padding:10px 12px;border:1px dashed var(--token);border-radius:14px;font-size:.92rem;color:var(--muted)}
   .rcode .code{display:block;font-size:1.7rem}
+  .dojo-tally{display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-size:.85rem;color:var(--muted)}
+  .dojo-tally::before{content:"";width:12px;height:12px;background:var(--token);clip-path:var(--star)}
+  .dojo-tally b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .dojo-tally .plus{color:var(--ok);font-weight:700}
 
   /* ---- tablet mode: the lesson sign sits in the sky, the scene shrinks to fit above the iPad keyboard ---- */
   body.tablet #playPanel{display:none}
@@ -271,7 +275,7 @@
           <div><b id="rTime">0:00</b><span>Time</span></div>
         </div>
         <p class="rnote" id="rNote"></p>
-        <div class="rcode" id="rCodeBox">Your new progress code. Write it in your book.<span class="code" id="rCode"></span></div>
+        <div class="rcode" id="rCodeBox">Your new progress code. Write it in your book.<span class="code" id="rCode"></span><span class="dojo-tally" id="rDojo"></span></div>
         <div class="rbtns">
           <button id="rAgain" type="button">Try again</button>
           <button id="rNext" class="primary" type="button">Next stage</button>
@@ -288,6 +292,7 @@
       <div>
         <div class="lbl">Your progress code. Write it in your book.</div>
         <div class="code" id="myCode">EMU-2222-9</div>
+        <div class="dojo-tally" id="myDojo">Dojo points earned: <b>0</b></div>
       </div>
       <form class="codeload" id="codeForm" autocomplete="off">
         <label class="lbl" for="codeIn">Have a code?</label>
@@ -445,6 +450,8 @@
     for (let i = 0; i < 4; i++) { body = CODE_CH[n % 32] + body; n = Math.floor(n / 32); }
     return "EMU-" + body + "-" + CODE_CH[checksum(body)];
   }
+  // One Dojo point per star. Stars live in the progress code, so the tally travels with it.
+  function dojoTotal(){ return STAGES.reduce((n, s) => n + (save.best[s.id] ? clamp(save.best[s.id].stars | 0, 0, 3) : 0), 0); }
   function readCode(raw){
     let s = String(raw).toUpperCase().replace(/[^0-9A-Z]/g, "");
     if (s.length === 8 && s.startsWith("EMU")) s = s.slice(3);
@@ -748,7 +755,7 @@
     const newBest = old && old.wpm != null && wpm > old.wpm;
     if (better) save.best[G.stage.id] = { stars, wpm:Math.round(wpm), acc:Math.round(acc * 100) };
     persist();
-    G.last = { stars, wpm, acc, secs, newBest };
+    G.last = { stars, wpm, acc, secs, newBest, gained:Math.max(0, stars - (old ? old.stars : 0)) };
     S.jump = 0; burst(S.emuX + 70, 150, 26); sndWin();
     setTimeout(showResult, 1300);
   }
@@ -775,6 +782,7 @@
     const nxt = STAGES.find(s => s.id === G.stage.id + 1 && s.playable);
     $("#rNext").hidden = !nxt; $("#rNext").dataset.id = nxt ? nxt.id : "";
     $("#rCode").textContent = makeCode();
+    $("#rDojo").innerHTML = (r.gained ? '<span class="plus">+' + r.gained + '</span> ' : "") + "Dojo points earned: <b>" + dojoTotal() + "</b>";
     $("#rCodeBox").hidden = false; $("#rStars").hidden = false;
     $("#rAgain").textContent = "Try again"; $("#rAgain").classList.remove("primary");
     $("#resultOv").hidden = false;
@@ -786,6 +794,7 @@
   function renderMap(){
     const wrap = $("#stages"); wrap.innerHTML = "";
     $("#myCode").textContent = makeCode();
+    $("#myDojo").innerHTML = "Dojo points earned: <b>" + dojoTotal() + "</b>";
     const rec = nextStageToPlay();
     STAGES.forEach(st => {
       const b = save.best[st.id];
