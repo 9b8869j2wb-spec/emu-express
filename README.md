@@ -1,6 +1,6 @@
 # Emu Express
 
-An outback touch-typing game for the classroom. Ride an emu from Uluru to Perth, one set of keys at a time.
+An outback touch-typing game for the classroom. Ride an emu from Uluru to Perth across ten stages: home row, top row, bottom row, capitals, punctuation, numbers, speed, accuracy, then full sentences in Tasmania and Perth.
 
 Play: https://9b8869j2wb-spec.github.io/emu-express/
 

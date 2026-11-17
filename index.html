@@ -128,6 +128,9 @@
   /* ---- lesson ---- */
   .sign{background:#05050d;border:1px solid var(--rule);border-radius:20px;padding:20px 24px 16px}
   .line{font-family:var(--display);font-weight:600;font-size:clamp(1.5rem,1rem + 2.2vw,2.5rem);line-height:1.45;letter-spacing:.05em;color:#8d8ab8;min-height:1.45em}
+  .sign{container-type:inline-size}
+  .line .w{white-space:nowrap}
+  .line{font-size:min(clamp(1.5rem,1rem + 2.2vw,2.5rem), calc(135cqi / var(--len, 20)))}
   .ch{display:inline-block;border-radius:6px;padding:0 1px;transition:color .1s}
   .ch.sp{min-width:.5em}
   .ch.done{color:var(--cyan)}
@@ -147,8 +150,13 @@
 
   .kb{display:grid;gap:7px;justify-content:center;margin-top:16px;user-select:none}
   .krow{display:flex;gap:7px}
-  .krow:nth-child(2){transform:translateX(calc(var(--k) * .3))}
-  .krow:nth-child(3){transform:translateX(calc(var(--k) * .75))}
+  .krow.r0{transform:translateX(calc(var(--k) * .35))}
+  .krow.r1{transform:translateX(calc(var(--k) * .85))}
+  .krow.r2{transform:translateX(calc(var(--k) * 1.15))}
+  .krow.r3{transform:translateX(calc(var(--k) * 0 - 7px))}
+  .krow.r4{transform:translateX(calc(var(--k) * 3.3))}
+  .key.wide{width:calc(var(--k) * 1.6);font-size:clamp(.6rem,.45rem + .5vw,.85rem)}
+  .key[data-up]::before{content:attr(data-up);position:absolute;top:2px;left:6px;font-size:.62em;opacity:.6}
   .key{
     --fc:var(--muted);
     position:relative;width:var(--k);height:var(--k);display:grid;place-items:center;
@@ -211,7 +219,7 @@
   /* in tablet mode the sign is a strip above the picture, so it never covers the emu */
   .scene > .sign{border:0;border-bottom:1px solid var(--rule);border-radius:0;padding:8px 18px 7px;cursor:text;
     display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:16px}
-  .scene > .sign .line{grid-column:1/-1;font-size:clamp(1.5rem,1rem + 1.9vw,2.2rem);line-height:1.3}
+  .scene > .sign .line{grid-column:1/-1;font-size:clamp(1.5rem,1rem + 1.9vw,2.2rem);font-size:min(clamp(1.5rem,1rem + 1.9vw,2.2rem), calc(135cqi / var(--len, 20)));line-height:1.3}
   .scene > .sign .upnext{display:none}
   .scene > .sign .hint{grid-column:1;grid-row:2;margin:2px 0 0;font-size:.9rem;min-height:1.3em}
   .scene > .sign .linestars{grid-column:2;grid-row:2;margin:0;gap:4px}
@@ -275,7 +283,7 @@
 
   <section class="panel" id="mapPanel">
     <h2>Around Australia</h2>
-    <p>Ten stages from Uluru to Perth, one new set of keys at a time. Three are playable in this prototype.</p>
+    <p>Ten stages from Uluru to Perth, one new skill at a time. The last two are full sentences.</p>
     <div class="codebox">
       <div>
         <div class="lbl">Your progress code. Write it in your book.</div>
@@ -347,37 +355,75 @@
       theme:{top:"#05030a",mid:"#241a45",glow:"#e0a040",ridge:"#241a3a",ridge2:"#33244a",prop:"#160f26",ground:"#3a2a30",track:"#5c4040",dust:"#d8b080"},
       drills:["zxcv bnm zxcv bnm","vbv nmn cxc zxz vbv","maze next zinc box vim"],
       pool:["emu","dingo","kangaroo","wombat","wallaby","outback","kookaburra","billabong","boomerang","bushfire","campfire","swagman","spinifex","echidna","cockatoo","waratah","billy","damper","bilby","numbat","quokka","dugong","barramundi","crocodile","cassowary","desert","sunset","starlight","galaxy","comet","planet","orbit","rocket","cosmos","nebula","meteor","southern","cross","milky","way","red","dust","long","road","big","sky","night","camp","stars","windmill","horizon","plain","emu","crow","magpie","galah"] },
-    { id:4, name:"Pilbara", place:"Western Australia", keys:"Capital letters" },
-    { id:5, name:"Daintree", place:"Queensland", keys:"Punctuation" },
-    { id:6, name:"Whitsundays", place:"Queensland", keys:"Numbers" },
-    { id:7, name:"Blue Mountains", place:"New South Wales", keys:"Speed runs" },
-    { id:8, name:"Great Ocean Road", place:"Victoria", keys:"Accuracy runs" },
-    { id:9, name:"Tasmania", place:"Tasmania", keys:"Full sentences" },
-    { id:10, name:"Perth", place:"Western Australia", keys:"Home stretch" }
+    { id:4, name:"Pilbara", place:"Western Australia", keys:"Capital letters", km:30, lines:9, playable:true,
+      landmark:"mesa", props:["spinifex","spinifex","mound","gum","salt"],
+      theme:{top:"#04020a",mid:"#2a1030",glow:"#d0603a",ridge:"#2a1424",ridge2:"#3a1a26",prop:"#1a0c14",ground:"#4a1c1c",track:"#6a2c22",dust:"#d07a50"},
+      drills:["Aa Ss Dd Ff Jj Kk Ll","Emu Emu Quokka Quokka","Perth Darwin Hobart"],
+      pool:["Perth","Darwin","Hobart","Sydney","Adelaide","Brisbane","Canberra","Melbourne","Broome","Karratha","Pilbara","Karijini","Uluru","Kakadu","Exmouth","Albany","Esperance","Kalgoorlie","Bunbury","Ningaloo","Rottnest","Geraldton","Kununurra","Fremantle","Murray","Alice","Cairns","Emu","Dingo","Quokka","Wombat","Koala","Galah","red","dust","big","rock","gorge","road","sky","hot","iron","ore","truck","camp"] },
+    { id:5, name:"Daintree", place:"Queensland", keys:"Punctuation", km:30, lines:9, playable:true,
+      landmark:"canopy", props:["palm","fern","paperbark","fern","palm"],
+      theme:{top:"#01060a",mid:"#0a2a28",glow:"#2fa07a",ridge:"#082018",ridge2:"#0c2a20",prop:"#04120c",ground:"#12301f",track:"#2a4a32",dust:"#8fc0a0"},
+      drills:["a, b, c. d, e, f.","Yes. No. Yes, no.","Wow! Why? Wow! Why?"],
+      sentences:["Rain, rain, more rain.","Is that a cassowary?","Look out, a croc!","The forest is green, wet and old.","It's hot. It's wet. It's fun.","Where's the emu going?","Stop! Don't feed the crocs.","Frogs, birds and bats call at night.","Wow! A blue butterfly.","Can you hear the rain?","Yes, the river is wide.","Shh! The tree frog is asleep."] },
+    { id:6, name:"Whitsundays", place:"Queensland", keys:"Numbers", km:30, lines:9, playable:true,
+      landmark:"islands", props:["palm","palm","salt","spinifex","palm"],
+      theme:{top:"#020614",mid:"#0c2a52",glow:"#4ac0d8",ridge:"#0a2440",ridge2:"#103050",prop:"#06142a",ground:"#4a4660",track:"#6a6680",dust:"#d8d4e8"},
+      drills:["1 2 3 4 5 6 7 8 9 0","10 20 30 40 50","12 34 56 78 90"],
+      sentences:["There are 74 Whitsunday islands.","Whitehaven Beach is 7 km long.","We saw 3 turtles and 12 fish.","The water was 26 degrees.","Captain Cook sailed by in 1770.","Our boat left at 9 and came back at 4.","We counted 58 shells.","Snorkel for 45 minutes.","The reef is over 2300 km long.","I saw 2 rays and 1 shark."] },
+    { id:7, name:"Blue Mountains", place:"New South Wales", keys:"Speed runs", km:30, lines:9, playable:true,
+      landmark:"sisters", props:["gum","gum","fern","salt","gum"], dingo:1.3,
+      theme:{top:"#020410",mid:"#14204a",glow:"#5a7ad0",ridge:"#18224a",ridge2:"#1e2c58",prop:"#0a1028",ground:"#1e2236",track:"#3a3a54",dust:"#a8b0d8"},
+      drills:["the and you that was for","go see do it now","fast feet fast feet"],
+      pool:["the","and","you","that","was","for","are","with","they","this","from","have","one","had","word","but","not","what","all","were","when","your","can","said","there","use","each","which","she","how","their","will","up","other","about","out","many","then","them","these","some","her","would","make","like","into","time","has","look","two","more","write","go","see","number","no","way","could","people","than","first","water","been","call","who","now","find","long","down","day","did","get","come","made","may","part","run","fast","jump"] },
+    { id:8, name:"Great Ocean Road", place:"Victoria", keys:"Accuracy runs", km:30, lines:9, playable:true,
+      landmark:"apostles", props:["salt","spinifex","gum","salt","salt"], starAt:[.98,.93],
+      theme:{top:"#02050c",mid:"#102848",glow:"#e08a5a",ridge:"#122640",ridge2:"#18304c",prop:"#081420",ground:"#2a2a3a",track:"#4a4658",dust:"#c8c0d0"},
+      drills:["ee oo ll ss pp","sea see seal seat","lighthouse lighthouse"],
+      pool:["limestone","shipwreck","lighthouse","surfing","waves","cliffs","gorge","seaspray","penguin","glowworm","koala","otway","torquay","lorne","apollo","rainforest","rockpool","kelp","seaweed","albatross","crayfish","abalone","driftwood","whirlpool","tidal","swell","breakers","headland","archway","seagull","apostles","pillar","erosion"] },
+    { id:9, name:"Tasmania", place:"Tasmania", keys:"Full sentences", km:30, lines:9, playable:true,
+      landmark:"cradle", props:["fern","gum","fern","salt","fern"],
+      theme:{top:"#02040a",mid:"#162238",glow:"#7ab0c8",ridge:"#142030",ridge2:"#1a2a3a",prop:"#081018",ground:"#14261e",track:"#2c3a34",dust:"#a0b8b0"},
+      drills:["The emu ran.","I like Tassie.","Hello, Hobart!"],
+      sentences:["Tasmanian devils eat at night.","Cradle Mountain has snow in winter.","Wombat poo is shaped like cubes.","Hobart is the capital of Tasmania.","The platypus lays eggs.","Pademelons hop through the ferns.","Pack a warm jumper for Tassie.","Echidnas have spines and a long snout.","We crossed Bass Strait by ferry.","Quolls have white spots.","Can you spell Tasmania?"] },
+    { id:10, name:"Perth", place:"Western Australia", keys:"Home stretch", km:40, lines:10, playable:true,
+      landmark:"skyline", props:["gum","palm","spinifex","gum","salt"],
+      theme:{top:"#04030c",mid:"#24164a",glow:"#f0a040",ridge:"#1c1638",ridge2:"#241c44",prop:"#0e0a20",ground:"#2a2030",track:"#4a3a48",dust:"#d8b890"},
+      drills:["Nearly home!","Perth, here we come."],
+      sentences:["Welcome to Perth, the city of light.","Quokkas live on Rottnest Island.","The Swan River flows past the city.","A black swan is on the WA flag.","Kings Park is full of wildflowers.","The sun sets over the Indian Ocean.","Fremantle has fish and chips.","Perth is Australia's sunniest capital.","We rode all the way from Uluru!","You are a typing champion."],
+      ending:"Welcome home to Perth!" }
   ];
   const stageById = id => STAGES.find(s => s.id === id);
 
   /* ------------------------------------------------------------------ keyboard */
   const ROWS = [
+    [["1","lp"],["2","lr"],["3","lm"],["4","li"],["5","li"],["6","ri"],["7","ri"],["8","rm"],["9","rr"],["0","rp"]],
     [["q","lp"],["w","lr"],["e","lm"],["r","li"],["t","li"],["y","ri"],["u","ri"],["i","rm"],["o","rr"],["p","rp"]],
-    [["a","lp"],["s","lr"],["d","lm"],["f","li"],["g","li"],["h","ri"],["j","ri"],["k","rm"],["l","rr"],[";","rp"]],
-    [["z","lp"],["x","lr"],["c","lm"],["v","li"],["b","li"],["n","ri"],["m","ri"],[",","rm"],[".","rr"]]
+    [["a","lp"],["s","lr"],["d","lm"],["f","li"],["g","li"],["h","ri"],["j","ri"],["k","rm"],["l","rr"],[";","rp"],["'","rp"]],
+    [["shiftL","lp"],["z","lp"],["x","lr"],["c","lm"],["v","li"],["b","li"],["n","ri"],["m","ri"],[",","rm"],[".","rr"],["/","rp"],["shiftR","rp"]]
   ];
+  // characters typed with shift, and the key they live on
+  const SHIFTED = { "!":"1", "?":"/", '"':"'", ":":";", "@":"2", "#":"3", "$":"4", "%":"5", "&":"7", "(":"9", ")":"0" };
+  const UP = { "1":"!", "/":"?", "'":'"', ";":":" };
+  const baseKey = ch => /[A-Z]/.test(ch) ? ch.toLowerCase() : (SHIFTED[ch] || ch);
+  const needsShift = ch => /[A-Z]/.test(ch) || ch in SHIFTED;
   const FINGER = {lp:"left little finger",lr:"left ring finger",lm:"left middle finger",li:"left pointer finger",
                   ri:"right pointer finger",rm:"right middle finger",rr:"right ring finger",rp:"right little finger"};
   const KEYS = {}, FOF = {};
   function buildKeyboard(){
     const kb = $("#kb"); kb.innerHTML = "";
-    ROWS.forEach(row => {
-      const r = document.createElement("div"); r.className = "krow";
+    ROWS.forEach((row, ri) => {
+      const r = document.createElement("div"); r.className = "krow r" + ri;
       row.forEach(([c,f]) => {
-        const k = document.createElement("div"); k.className = "key"; k.dataset.f = f; k.textContent = c;
+        const k = document.createElement("div"); k.className = "key"; k.dataset.f = f;
+        k.textContent = c.startsWith("shift") ? "shift" : c;
+        if (c.startsWith("shift")) k.classList.add("wide");
+        if (UP[c]) k.dataset.up = UP[c];
         if (c === "f" || c === "j") k.classList.add("bump");
         r.appendChild(k); KEYS[c] = k; FOF[c] = f;
       });
       kb.appendChild(r);
     });
-    const r = document.createElement("div"); r.className = "krow";
+    const r = document.createElement("div"); r.className = "krow r4";
     const sp = document.createElement("div"); sp.className = "key space"; sp.textContent = "space"; sp.style.setProperty("--fc","var(--muted)");
     r.appendChild(sp); kb.appendChild(r); KEYS[" "] = sp; FOF[" "] = "thumb";
   }
@@ -452,7 +498,7 @@
   function dingoCaught(){
     G.caught++; G.state = "caught"; S.dg = 0; S.warned = false;
     S.stumble = 1; S.kmh = 0; if (!reduce) S.shake = .4;
-    if (prevNext) { prevNext.classList.remove("next"); prevNext = null; }
+    clearNext();
     for (let i = 0; i < 14; i++) S.sparks.push({ x:S.emuX - 60, y:300, vx:-40 - Math.random() * 120, vy:-60 - Math.random() * 160, life:1.2, r:5 + Math.random() * 4, rot:Math.random() * 6, c:Math.random() < .5 ? "#9a857b" : "#5b4850" });
     sndCaught();
     hintEl.className = "hint warn"; hintEl.innerHTML = "The dingo caught you!";
@@ -467,7 +513,7 @@
     $("#rWpm").textContent = Math.round(wpmNow());
     $("#rAcc").textContent = G.total ? Math.round(accNow() * 100) + "%" : "–";
     $("#rTime").textContent = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
-    const miss = Object.entries(G.missed).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c === " " ? "space" : c.toUpperCase());
+    const miss = Object.entries(G.missed).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c === " " ? "space" : /[a-z]/.test(c) ? c.toUpperCase() : c);
     $("#rNote").innerHTML = "You made it " + (prog * G.stage.km).toFixed(1) + " of " + G.stage.km + " km. Keep a steady rhythm and don't stop, and the dingo can't catch you. Start the stage again to have another go." +
       (miss.length ? " <b>Keys to practise: " + miss.join(", ") + ".</b>" : "");
     const again = $("#rAgain"); again.textContent = "Start again"; again.classList.add("primary");
@@ -484,8 +530,15 @@
 
   function makeLines(st){
     const r = rng((Date.now() & 0xffff) + st.id * 97);
-    const pool = st.pool.filter(w => [...w].every(c => st.allowed.includes(c)));
     const out = st.drills.slice();
+    if (st.sentences) {
+      const pool = st.sentences.slice();
+      for (let i = pool.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      let i = 0; while (out.length < st.lines - (st.ending ? 1 : 0)) out.push(pool[i++ % pool.length]);
+      if (st.ending) out.push(st.ending);
+      return out.map(l => tablet ? l.replace(/;/g, "").replace(/\s+/g, " ").trim() : l);
+    }
+    const pool = st.pool.filter(w => !st.allowed || [...w].every(c => st.allowed.includes(c)));
     while (out.length < st.lines) {
       const line = [];
       while (line.join(" ").length < 19) {
@@ -530,8 +583,10 @@
     fit();
   }
   function startHint(){
-    return tablet ? "Tap the first letter on the iPad keyboard to start the emu."
-                  : "Rest your fingers on the home row. Type the <b>glowing key</b> to start the emu.";
+    const st = G.stage, extra = st.dingo && dingoOn() ? "Speed run: the dingo is faster here. "
+      : st.starAt ? "Accuracy run: every mistake counts. " : "";
+    return extra + (tablet ? "Tap the first letter on the iPad keyboard to start the emu."
+                  : "Rest your fingers on the home row. Type the <b>glowing key</b> to start the emu.");
   }
 
   /* ------------------------------------------------------------------ navigation */
@@ -562,7 +617,7 @@
     $("#mapPanel").hidden = true; $("#playPanel").hidden = false; $("#hud").hidden = false;
     $("#stageTitle").innerHTML = "Stage " + st.id + " <small>" + st.name + " · " + st.keys + "</small>";
     lsEl.innerHTML = G.lines.map(() => "<i></i>").join("");
-    for (const c in KEYS) KEYS[c].classList.toggle("off", c !== " " && !st.allowed.includes(c));
+    for (const c in KEYS) KEYS[c].classList.toggle("off", !!st.allowed && c !== " " && !st.allowed.includes(c));
     setLine(); updateHud();
     hintEl.className = "hint";
     hintEl.innerHTML = startHint();
@@ -580,23 +635,35 @@
   function setLine(){
     const line = G.lines[G.li];
     lineEl.innerHTML = ""; G.spans = [];
+    lineEl.style.setProperty("--len", Math.max(16, line.length));
+    let word = null;
     for (const ch of line) {
       const s = document.createElement("span");
       s.className = ch === " " ? "ch sp" : "ch"; s.textContent = ch === " " ? " " : ch;
-      lineEl.appendChild(s); G.spans.push(s);
+      if (ch === " ") { word = null; lineEl.appendChild(s); }
+      else { if (!word) { word = document.createElement("span"); word.className = "w"; lineEl.appendChild(word); } word.appendChild(s); }
+      G.spans.push(s);
     }
     G.ci = 0; G.spans[0].classList.add("cur");
     upEl.textContent = G.lines[G.li + 1] || "";
     setNextKey(line[0]);
   }
+  let nextEls = [];
+  function clearNext(){ nextEls.forEach(k => k.classList.remove("next")); nextEls = []; prevNext = null; }
   function setNextKey(ch){
-    if (prevNext) prevNext.classList.remove("next");
-    const k = KEYS[ch]; if (k) { k.classList.add("next"); prevNext = k; }
+    clearNext();
+    const b = baseKey(ch), k = KEYS[b], f = FOF[b];
+    const sh = needsShift(ch) ? KEYS[f && f[0] === "l" ? "shiftR" : "shiftL"] : null;
+    for (const el of [k, sh]) if (el) { el.classList.add("next"); nextEls.push(el); }
+    prevNext = k || null;
     if (G.started) {
-      const f = FOF[ch];
-      const name = ch === " " ? "Space bar" : ch.toUpperCase();
+      const name = ch === " " ? "Space bar" : /[A-Z]/.test(ch) ? "capital " + ch : /[a-z]/.test(ch) ? ch.toUpperCase() : ch;
+      const fin = f === "thumb" ? "thumb" : FINGER[f] || "finger";
       hintEl.className = "hint";
-      hintEl.innerHTML = "Next: <b>" + name + "</b>. Use your " + (f === "thumb" ? "thumb" : FINGER[f]) + ".";
+      if (sh) hintEl.innerHTML = tablet
+        ? "Next: <b>" + name + "</b>. Tap <b>shift</b> first."
+        : "Next: <b>" + name + "</b>. Hold <b>shift</b> with your other little finger, then use your " + fin + ".";
+      else hintEl.innerHTML = "Next: <b>" + name + "</b>. Use your " + fin + ".";
     }
   }
 
@@ -617,13 +684,14 @@
   function typeChar(key){
     if (G.state !== "play") return;
     const target = G.lines[G.li][G.ci];
+    key = key.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"'); // iPad smart quotes
     if (tablet && key !== target && key.toLowerCase() === target) key = target; // the iPad may add a capital
     const e = { key };
     const now = performance.now();
     if (G.lastTs) G.activeMs += Math.min(now - G.lastTs, 3000);
     G.lastTs = now;
     G.total++;
-    const kEl = KEYS[e.key.toLowerCase()];
+    const kEl = KEYS[baseKey(e.key)];
     if (e.key === target) {
       G.started = true; G.correct++; G.doneChars++; G.hits.push(now); sndOk();
       if (kEl) flash(kEl, "hit");
@@ -669,11 +737,12 @@
   }
   function finishStage(){
     G.state = "finish";
-    if (prevNext) { prevNext.classList.remove("next"); prevNext = null; }
+    clearNext();
     hintEl.className = "hint"; hintEl.textContent = "Stage complete. Well ridden!";
     tapEl.blur();
     const acc = accNow(), wpm = wpmNow(), secs = Math.round(G.activeMs / 1000);
-    const stars = acc >= .95 ? 3 : acc >= .85 ? 2 : 1;
+    const th = G.stage.starAt || [.95, .85];
+    const stars = acc >= th[0] ? 3 : acc >= th[1] ? 2 : 1;
     const old = save.best[G.stage.id];
     const better = !old || stars > old.stars || (stars === old.stars && (old.wpm == null || wpm > old.wpm));
     const newBest = old && old.wpm != null && wpm > old.wpm;
@@ -691,12 +760,17 @@
     $("#rWpm").textContent = Math.round(r.wpm);
     $("#rAcc").textContent = Math.round(r.acc * 100) + "%";
     $("#rTime").textContent = Math.floor(r.secs / 60) + ":" + String(r.secs % 60).padStart(2, "0");
-    const miss = Object.entries(G.missed).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c === " " ? "space" : c.toUpperCase());
+    const miss = Object.entries(G.missed).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c === " " ? "space" : /[a-z]/.test(c) ? c.toUpperCase() : c);
     let note = r.stars === 3 ? "Super accurate. Now you can start building speed."
              : r.stars === 2 ? "Good accuracy. Slow and steady is faster in the end."
              : "Accuracy first. Slow down a little and let the emu find its rhythm.";
     if (r.newBest) note = "New personal best for this stage. " + note;
     if (dingoOn()) note = "You outran the dingo! " + note;
+    if (G.stage.starAt) note = "Accuracy run: 3 stars needs " + Math.round(G.stage.starAt[0] * 100) + "%. " + note;
+    if (G.stage.id === STAGES.length) {
+      $("#rTitle").textContent = "You made it to Perth!";
+      note = "Welcome home! You rode an emu right across Australia, from Uluru to the Indian Ocean. " + note;
+    }
     $("#rNote").innerHTML = note + (miss.length ? " <b>Keys to practise: " + miss.join(", ") + ".</b>" : "");
     const nxt = STAGES.find(s => s.id === G.stage.id + 1 && s.playable);
     $("#rNext").hidden = !nxt; $("#rNext").dataset.id = nxt ? nxt.id : "";
@@ -795,6 +869,100 @@
     ctx.restore();
   }
 
+
+  /* ---- landmarks for stages 4 to 10 ---- */
+  function lmGrad(y0, y1, a, b){ const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
+  function poly(pts){ ctx.beginPath(); pts.forEach((p, i) => ctx[i ? "lineTo" : "moveTo"](p[0], p[1])); ctx.closePath(); ctx.fill(); }
+  function water(t, w){
+    ctx.fillStyle = lmGrad(-14, 6, "#1f4f80", "#0c2440"); ctx.fillRect(-w, -14, w * 2, 20);
+    ctx.strokeStyle = "rgba(200,230,255,.25)"; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 9; i++) { const x = -w + ((i * 97 + t * 14) % (w * 2)); ctx.beginPath(); ctx.moveTo(x, -6 + (i % 3) * 4); ctx.lineTo(x + 26, -6 + (i % 3) * 4); ctx.stroke(); }
+  }
+  function drawMesa(cx, base, s){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    ctx.fillStyle = lmGrad(-100, 0, "#a8452e", "#3a1420");
+    poly([[-270,0],[-238,-70],[-96,-76],[-62,0]]); poly([[-30,0],[4,-100],[150,-102],[196,0]]); poly([[206,0],[222,-42],[268,-42],[284,0]]);
+    ctx.strokeStyle = "rgba(255,170,130,.22)"; ctx.lineWidth = 2;
+    for (const [a, b, y] of [[-230,-104,-52],[-226,-100,-28],[12,146,-74],[2,160,-48],[-6,172,-22]]) { ctx.beginPath(); ctx.moveTo(a, y); ctx.lineTo(b, y); ctx.stroke(); }
+    ctx.fillStyle = "rgba(255,190,150,.25)"; ctx.fillRect(4, -102, 146, 4); ctx.fillRect(-238, -76, 142, 3);
+    ctx.restore();
+  }
+  function drawCanopy(cx, base, s){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    for (let i = -7; i <= 7; i++) { ctx.fillStyle = i % 2 ? "#0e3a2a" : "#12462f"; ctx.beginPath(); ctx.arc(i * 38, -46 - Math.abs((i * 7) % 3) * 12, 40, 0, 7); ctx.fill(); }
+    for (const [x, h] of [[-150, 120], [40, 140], [190, 112]]) {
+      ctx.strokeStyle = "#0a2a1e"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x, -40); ctx.lineTo(x, -h + 10); ctx.stroke();
+      ctx.fillStyle = "#16583a"; ctx.beginPath(); ctx.ellipse(x, -h, 46, 22, 0, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(180,230,210,.10)"; ctx.fillRect(-300, -40, 600, 26);
+    ctx.fillStyle = "#0b3324"; ctx.fillRect(-300, -40, 600, 40);
+    ctx.restore();
+  }
+  function drawIslands(cx, base, s, t){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    water(t, 340);
+    ctx.fillStyle = "#0f2a34";
+    for (const [x, w, h] of [[-190, 110, 40], [60, 150, 58], [250, 70, 24]]) { ctx.beginPath(); ctx.ellipse(x, -10, w, h, 0, Math.PI, 0); ctx.fill(); }
+    ctx.fillStyle = "rgba(230,230,255,.55)"; ctx.fillRect(20, -12, 120, 3);
+    const by = -16 + Math.sin(t * 2) * 1.5;
+    ctx.fillStyle = "#e8e4f4"; poly([[-60, by], [-60, by - 38], [-34, by]]); poly([[-64, by - 34], [-64, by], [-80, by]]);
+    ctx.fillStyle = "#3a2a3a"; poly([[-86, by + 1], [-28, by + 1], [-36, by + 8], [-80, by + 8]]);
+    ctx.restore();
+  }
+  function drawSisters(cx, base, s){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    ctx.fillStyle = lmGrad(-130, 0, "#8a8fc8", "#2a2e5c");
+    poly([[-300,0],[-300,-86],[-200,-90],[-110,-84],[-96,0]]);
+    poly([[160,0],[176,-80],[300,-84],[300,0]]);
+    for (const [x, h, w] of [[-50, 112, 30], [4, 128, 34], [60, 100, 28]]) {
+      poly([[x - w, 0], [x - w * .8, -h * .7], [x - w * .45, -h], [x + w * .45, -h + 4], [x + w * .8, -h * .66], [x + w, 0]]);
+    }
+    ctx.fillStyle = lmGrad(-60, 0, "rgba(110,140,230,0)", "rgba(110,140,230,.22)"); ctx.fillRect(-300, -60, 600, 60);
+    ctx.restore();
+  }
+  function drawApostles(cx, base, s, t){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    water(t, 340);
+    ctx.fillStyle = lmGrad(-100, 0, "#b08068", "#3a2434");
+    poly([[150,-8],[168,-80],[340,-86],[340,-8]]);
+    for (const [x, h, w] of [[-220, 70, 13], [-140, 92, 16], [-62, 60, 11], [20, 84, 15], [92, 56, 10]]) {
+      poly([[x - w, -8], [x - w * .7, -h], [x + w * .6, -h - 4], [x + w, -8]]);
+      ctx.fillStyle = "rgba(255,255,255," + (.35 + .2 * Math.sin(t * 3 + x)) + ")"; ctx.fillRect(x - w - 4, -10, w * 2 + 8, 2.5);
+      ctx.fillStyle = lmGrad(-100, 0, "#b08068", "#3a2434");
+    }
+    ctx.restore();
+  }
+  function drawCradle(cx, base, s){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    ctx.fillStyle = lmGrad(-140, 0, "#8a9ab4", "#26323f");
+    const pk = [[-280,0],[-210,-60],[-178,-52],[-126,-112],[-104,-92],[-76,-134],[-50,-104],[-18,-124],[14,-84],[70,-74],[130,-34],[230,0]];
+    poly(pk);
+    ctx.fillStyle = "rgba(240,248,255,.85)";
+    poly([[-136,-100],[-126,-112],[-114,-102],[-122,-98]]); poly([[-86,-120],[-76,-134],[-62,-118],[-74,-114]]); poly([[-28,-112],[-18,-124],[-6,-110],[-16,-106]]);
+    ctx.strokeStyle = "rgba(10,16,24,.5)"; ctx.lineWidth = 2;
+    for (const x of [-120, -90, -70, -40, -14]) { ctx.beginPath(); ctx.moveTo(x, -100); ctx.lineTo(x + 3, -40); ctx.stroke(); }
+    ctx.fillStyle = "rgba(120,170,210,.35)"; ctx.beginPath(); ctx.ellipse(-60, -4, 150, 8, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  const skyRng = rng(77), towers = [[-250,40,60],[-205,34,88],[-166,46,70],[-114,30,120],[-80,40,96],[-34,36,150],[8,44,110],[60,30,132],[96,40,84],[150,34,100],[192,44,64],[244,36,78]]
+    .map(([x, w, h]) => ({ x, w, h, lit:Array.from({ length:24 }, () => skyRng() < .45) }));
+  function drawSkyline(cx, base, s, t){
+    ctx.save(); ctx.translate(cx, base); ctx.scale(s, s);
+    for (const b of towers) {
+      ctx.fillStyle = "#1a1438"; ctx.fillRect(b.x, -b.h, b.w, b.h);
+      let i = 0;
+      for (let y = -b.h + 8; y < -8; y += 12) for (let x = b.x + 6; x < b.x + b.w - 6; x += 10) {
+        if (b.lit[i++ % 24]) { ctx.fillStyle = "rgba(255,210,120,.8)"; ctx.fillRect(x, y, 4, 5); }
+      }
+    }
+    ctx.fillStyle = "#2a3a6a"; poly([[290,-2],[290,-74],[296,-96],[302,-74],[302,-2]]);
+    ctx.fillStyle = "rgba(111,214,242,.7)"; ctx.fillRect(293, -70, 6, 30);
+    water(t, 340);
+    ctx.fillStyle = "rgba(255,210,120,.18)"; for (const b of towers) ctx.fillRect(b.x + 4, -6, b.w - 8, 3);
+    ctx.restore();
+  }
+  const LANDMARKS = { uluru:drawUluru, escarp:drawEscarp, mill:drawMill, mesa:drawMesa, canopy:drawCanopy, islands:drawIslands, sisters:drawSisters, apostles:drawApostles, cradle:drawCradle, skyline:drawSkyline };
+
   /* ---- props ---- */
   function drawProp(p, x, y, th){
     const s = p.s, c = th.prop;
@@ -811,6 +979,18 @@
     } else if (p.kind === "paperbark") {
       ctx.strokeStyle = "rgba(190,175,215,.5)"; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 5 * s, y - 50 * s, x - 2 * s, y - 96 * s); ctx.stroke();
       ctx.fillStyle = c; for (const o of [[-14,-98,16],[8,-104,18],[-2,-90,14]]) { ctx.beginPath(); ctx.ellipse(x + o[0] * s, y + o[1] * s, o[2] * s, 7 * s, 0, 0, 7); ctx.fill(); }
+    } else if (p.kind === "palm") {
+      ctx.lineWidth = 3.4 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 10 * s, y - 40 * s, x + 4 * s, y - 70 * s); ctx.stroke();
+      ctx.lineWidth = 2.6 * s;
+      for (const a of [-2.6, -2.1, -1.6, -1.0, -0.5, 0.1]) { ctx.beginPath(); ctx.moveTo(x + 4 * s, y - 70 * s); ctx.quadraticCurveTo(x + 4 * s + Math.cos(a) * 18 * s, y - 70 * s + Math.sin(a) * 18 * s - 6 * s, x + 4 * s + Math.cos(a) * 30 * s, y - 70 * s + Math.sin(a) * 14 * s + 10 * s); ctx.stroke(); }
+    } else if (p.kind === "gum") {
+      ctx.strokeStyle = "rgba(200,190,220,.35)"; ctx.lineWidth = 3.5 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x - 6 * s, y - 40 * s, x + 2 * s, y - 70 * s); ctx.stroke();
+      ctx.fillStyle = c;
+      for (const [ox, oy, r] of [[-14, -74, 16], [6, -82, 18], [20, -70, 13], [-2, -64, 12]]) { ctx.beginPath(); ctx.arc(x + ox * s, y + oy * s, r * s, 0, 7); ctx.fill(); }
+    } else if (p.kind === "fern") {
+      ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 1 * s, y - 34 * s); ctx.stroke();
+      ctx.lineWidth = 2 * s;
+      for (const a of [-2.9, -2.4, -1.9, -1.2, -0.7, -0.2]) { ctx.beginPath(); ctx.moveTo(x + s, y - 34 * s); ctx.quadraticCurveTo(x + s + Math.cos(a) * 16 * s, y - 34 * s + Math.sin(a) * 16 * s, x + s + Math.cos(a) * 28 * s, y - 34 * s + Math.sin(a) * 6 * s + 12 * s); ctx.stroke(); }
     } else {
       ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 15 * s, 6 * s, 0, Math.PI, 0); ctx.fill();
       ctx.lineWidth = 1; for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(x + i * 3 * s, y - 6 * s); ctx.lineTo(x + i * 4 * s, y - 14 * s); ctx.stroke(); }
@@ -957,7 +1137,7 @@
     ridge(.05, hz + 6, 48, th.ridge, 0.7);
     const ls = .42 + .58 * prog, lm = G.state === "menu" ? stageById(nextStageToPlay().id).landmark : G.stage.landmark;
     const lx = G.state === "menu" ? 560 : 650 - prog * 40;
-    if (lm === "uluru") drawUluru(lx, hz + 14, ls); else if (lm === "escarp") drawEscarp(lx, hz + 14, ls, t); else drawMill(lx, hz + 14, ls, t);
+    (LANDMARKS[lm] || drawMill)(lx, hz + 14, ls, t);
     ridge(.12, hz + 26, 34, th.ridge2, 2.1);
     // ground
     g = ctx.createLinearGradient(0, hz + 14, 0, H); g.addColorStop(0, th.ground); g.addColorStop(1, "#0b0713");
@@ -1015,7 +1195,7 @@
     S.stumble = Math.max(0, S.stumble - dt * 2.4);
     if (dingoOn()) {
       if (G.state === "play" && G.started) {
-        const pace = DINGO_PACE[dingoLevel] * (tablet ? .8 : 1);
+        const pace = DINGO_PACE[dingoLevel] * (tablet ? .8 : 1) * (G.stage.dingo || 1);
         if (S.dPause > 0) { S.dPause -= dt; S.dg = Math.min(1, S.dg + dt * .05); }
         else {
           S.dg = clamp(S.dg + clamp((S.kmh - pace) / pace, -1, 1) * .11 * dt, 0, 1);
