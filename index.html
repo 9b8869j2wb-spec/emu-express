@@ -331,7 +331,7 @@
     <p>Prototype. Works with a keyboard or the iPad on-screen keyboard. Progress lives in your code. Nothing is sent anywhere.</p>
     <div class="pills">
       <button id="btnTablet" type="button" aria-pressed="false">Tablet mode: off</button>
-      <button id="btnDingo" type="button">Dingo: Easy</button>
+      <button id="btnDingo" type="button" disabled>Dingo: Hard</button>
       <button id="btnSound" type="button" aria-pressed="false">Sound: off</button>
     </div>
   </footer>
@@ -513,8 +513,7 @@
      if the emu (your typing speed) is slower, the gap shrinks. Being caught costs no progress. */
   const DINGO_LEVELS = ["Off", "Easy", "Normal", "Hard"];
   const DINGO_PACE = { Easy:10, Normal:16, Hard:24 }; // km/h. About 7, 11 and 17 words per minute
-  let dingoLevel = "Easy";
-  try { const d = localStorage.getItem("emuExpress.dingo"); if (DINGO_LEVELS.includes(d)) dingoLevel = d; } catch (e) {}
+  const dingoLevel = "Hard"; // locked by the teacher
   const sndCaught = () => { tone(220,.12,"square",.05,.7); setTimeout(()=>tone(180,.2,"square",.05,.6),110); };
   function dingoOn(){ return dingoLevel !== "Off"; }
   // Caught: the stage ends and must be started again from the first line. Stars and the progress code are not changed.
@@ -1341,14 +1340,7 @@
     $("#rNext").addEventListener("click", e => startStage(+e.currentTarget.dataset.id));
     $("#rMap").addEventListener("click", showMenu);
     const db = $("#btnDingo");
-    db.textContent = "Dingo: " + dingoLevel;
-    db.addEventListener("click", () => {
-      dingoLevel = DINGO_LEVELS[(DINGO_LEVELS.indexOf(dingoLevel) + 1) % DINGO_LEVELS.length];
-      db.textContent = "Dingo: " + dingoLevel;
-      try { localStorage.setItem("emuExpress.dingo", dingoLevel); } catch (e) {}
-      $("#pillDingo").hidden = !dingoOn();
-      if (!dingoOn()) $("#pillDingo").classList.remove("danger");
-    });
+    db.textContent = "Dingo: Hard"; db.disabled = true; db.title = "Difficulty is locked to Hard";
     $("#btnSound").addEventListener("click", e => {
       soundOn = !soundOn; e.currentTarget.textContent = "Sound: " + (soundOn ? "on" : "off"); e.currentTarget.setAttribute("aria-pressed", String(soundOn)); sndOk();
     });
